@@ -1,0 +1,91 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+
+class AuthProvider extends ChangeNotifier {
+  bool _isAuthenticated = false;
+  bool _isLoading = true;
+  String? _email;
+  String? _nickname;
+  String? _role;
+
+  bool get isAuthenticated => _isAuthenticated;
+  bool get isLoading => _isLoading;
+  String? get email => _email;
+  String? get nickname => _nickname;
+  String? get role => _role;
+
+  AuthProvider() {
+    checkAuthStatus();
+  }
+
+  // Restore session from local storage on app start
+  Future<void> checkAuthStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token != null && token.isNotEmpty) {
+      _isAuthenticated = true;
+      _email = prefs.getString('user_email');
+      _nickname = prefs.getString('user_nickname');
+      _role = prefs.getString('user_role');
+    } else {
+      _isAuthenticated = false;
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Login
+  Future<void> login(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = await ApiService.login(email, password);
+      _isAuthenticated = true;
+      _email = data['email'];
+      _nickname = data['nickname'];
+      _role = data['role'];
+    } catch (e) {
+      _isAuthenticated = false;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Signup
+  Future<void> signup(String email, String password, String nickname) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = await ApiService.signup(email, password, nickname);
+      _isAuthenticated = true;
+      _email = data['email'];
+      _nickname = data['nickname'];
+      _role = data['role'];
+    } catch (e) {
+      _isAuthenticated = false;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    await prefs.remove('user_email');
+    await prefs.remove('user_nickname');
+    await prefs.remove('user_role');
+    await prefs.remove('user_id');
+
+    _isAuthenticated = false;
+    _email = null;
+    _nickname = null;
+    _role = null;
+    notifyListeners();
+  }
+}
