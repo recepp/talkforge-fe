@@ -1,0 +1,599 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../services/api_service.dart';
+import 'talk_detail_screen.dart';
+
+class CreateTalkDialog extends StatefulWidget {
+  const CreateTalkDialog({super.key});
+
+  @override
+  State<CreateTalkDialog> createState() => _CreateTalkDialogState();
+}
+
+class _CreateTalkDialogState extends State<CreateTalkDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  final List<Map<String, String>> _speechTypeItems = [
+    {'title': 'Siyasetçi Konuşması', 'symbol': '🏛️'},
+    {'title': 'İmam Vaazı / Hutbe', 'symbol': '🕌'},
+    {'title': 'Öğretmen Sınıfa Tanışma Konuşması', 'symbol': '🎓'},
+    {'title': 'Öğretmen Sınıfa Veda Konuşması', 'symbol': '👋'},
+    {'title': 'Genel İş Sunumu / Hitabet', 'symbol': '💼'},
+    {'title': 'Düğün / Kutlama Konuşması', 'symbol': '🥂'},
+  ];
+
+  final List<Map<String, String>> _languageItems = [
+    {'code': 'Türkçe', 'symbol': '🇹🇷'},
+    {'code': 'İngilizce', 'symbol': '🇬🇧'},
+    {'code': 'Almanca', 'symbol': '🇩🇪'},
+    {'code': 'Fransızca', 'symbol': '🇫🇷'},
+    {'code': 'Arapça', 'symbol': '🇸🇦'},
+    {'code': 'Rusça', 'symbol': '🇷🇺'},
+  ];
+
+  String _selectedLanguage = 'Türkçe';
+  String _selectedSpeechType = 'Siyasetçi Konuşması';
+
+  final _placeKey = GlobalKey();
+  final _topicKey = GlobalKey();
+  final _placeFocusNode = FocusNode();
+  final _topicFocusNode = FocusNode();
+
+  final _placeController = TextEditingController();
+  final _topicController = TextEditingController();
+  double _durationMinutes = 5.0;
+
+  bool _isLoading = false;
+  String _errorMessage = '';
+
+  @override
+  void dispose() {
+    _placeController.dispose();
+    _topicController.dispose();
+    _placeFocusNode.dispose();
+    _topicFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final isValid = _formKey.currentState!.validate();
+    if (!isValid) {
+      if (_placeController.text.trim().isEmpty) {
+        if (_placeKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _placeKey.currentContext!,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+          );
+        }
+        _placeFocusNode.requestFocus();
+      } else if (_topicController.text.trim().isEmpty) {
+        if (_topicKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _topicKey.currentContext!,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+          );
+        }
+        _topicFocusNode.requestFocus();
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final newRequest = await ApiService.createTalkRequest(
+        mode: 'new',
+        language: _selectedLanguage,
+        place: _placeController.text.trim(),
+        topic: _topicController.text.trim(),
+        speechType: _selectedSpeechType,
+        duration: _durationMinutes.toInt(),
+      );
+      if (mounted) {
+        Navigator.pop(context); // Close popup dialog
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TalkDetailScreen(talkNode: newRequest),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 800),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF334155), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.55),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Popup Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Color(0xFF818CF8),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Yeni Konuşma Hazırla',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Color(0xFF334155), height: 1),
+
+            // Dialog Content
+            Flexible(
+              child: _isLoading
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: Color(0xFF6366F1)),
+                          SizedBox(height: 24),
+                          Text(
+                            'AI konuşma metninizi hazırlıyor...\nLütfen pencereyi kapatmayın.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                          )
+                        ],
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_errorMessage.isNotEmpty) ...[
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  _errorMessage,
+                                  style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+
+                            // 1. Speech Type Dropdown with Rounded Popup Menu & Symbols
+                            DropdownButtonFormField<String>(
+                              value: _selectedSpeechType,
+                              borderRadius: BorderRadius.circular(16),
+                              dropdownColor: const Color(0xFF1E293B),
+                              menuMaxHeight: 340,
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF818CF8)),
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                              decoration: InputDecoration(
+                                labelText: 'Konuşma Amacı / Rolü',
+                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                                prefixIcon: const Icon(Icons.campaign_outlined, color: Color(0xFF818CF8)),
+                                filled: true,
+                                fillColor: const Color(0xFF1E293B),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+                                ),
+                              ),
+                              selectedItemBuilder: (context) {
+                                return _speechTypeItems.map((item) {
+                                  final title = item['title']!;
+                                  final symbol = item['symbol']!;
+                                  return Row(
+                                    children: [
+                                      Text(symbol, style: const TextStyle(fontSize: 16)),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList();
+                              },
+                              items: _speechTypeItems.map((item) {
+                                final title = item['title']!;
+                                final symbol = item['symbol']!;
+                                final isSel = _selectedSpeechType == title;
+
+                                return DropdownMenuItem<String>(
+                                  value: title,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: isSel
+                                                ? const Color(0xFF6366F1).withOpacity(0.25)
+                                                : const Color(0xFF0F172A).withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: isSel ? const Color(0xFF818CF8) : const Color(0xFF334155).withOpacity(0.6),
+                                            ),
+                                          ),
+                                          child: Text(symbol, style: const TextStyle(fontSize: 15)),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            title,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color: isSel ? Colors.white : const Color(0xFFCBD5E1),
+                                              fontSize: 13,
+                                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSel)
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFF818CF8),
+                                            size: 18,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedSpeechType = val;
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 2. Language Dropdown with Rounded Popup Menu & Symbols
+                            DropdownButtonFormField<String>(
+                              value: _selectedLanguage,
+                              borderRadius: BorderRadius.circular(16),
+                              dropdownColor: const Color(0xFF1E293B),
+                              menuMaxHeight: 340,
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF34D399)),
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                              decoration: InputDecoration(
+                                labelText: 'Konuşma Dili',
+                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                                prefixIcon: const Icon(Icons.language_outlined, color: Color(0xFF34D399)),
+                                filled: true,
+                                fillColor: const Color(0xFF1E293B),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+                                ),
+                              ),
+                              selectedItemBuilder: (context) {
+                                return _languageItems.map((item) {
+                                  final code = item['code']!;
+                                  final symbol = item['symbol']!;
+                                  return Row(
+                                    children: [
+                                      Text(symbol, style: const TextStyle(fontSize: 16)),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        code,
+                                        style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  );
+                                }).toList();
+                              },
+                              items: _languageItems.map((item) {
+                                final code = item['code']!;
+                                final symbol = item['symbol']!;
+                                final isSel = _selectedLanguage == code;
+
+                                return DropdownMenuItem<String>(
+                                  value: code,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: isSel
+                                                ? const Color(0xFF059669).withOpacity(0.25)
+                                                : const Color(0xFF0F172A).withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: isSel ? const Color(0xFF34D399) : const Color(0xFF334155).withOpacity(0.6),
+                                            ),
+                                          ),
+                                          child: Text(symbol, style: const TextStyle(fontSize: 15)),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            code,
+                                            style: GoogleFonts.inter(
+                                              color: isSel ? Colors.white : const Color(0xFFCBD5E1),
+                                              fontSize: 13,
+                                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSel)
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: Color(0xFF34D399),
+                                            size: 18,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedLanguage = val;
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 3. Place Text Field
+                            TextFormField(
+                              key: _placeKey,
+                              focusNode: _placeFocusNode,
+                              controller: _placeController,
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                              decoration: InputDecoration(
+                                labelText: 'Konuşma Yapılacak Yer / Ortam',
+                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                                prefixIcon: const Icon(Icons.place_outlined, color: Color(0xFFF59E0B)),
+                                hintText: 'Örn: Belediye Konferans Salonu, Merkez Camii, Sınıf 3-A',
+                                hintStyle: const TextStyle(color: Color(0xFF475569)),
+                                filled: true,
+                                fillColor: const Color(0xFF1E293B),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Colors.redAccent),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                                ),
+                              ),
+                              validator: (value) =>
+                                  value == null || value.trim().isEmpty ? 'Konuşma yeri giriniz' : null,
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 4. Duration Slider Card
+                            Card(
+                              color: const Color(0xFF1E293B),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(color: Color(0xFF334155)),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.timer_outlined, color: Color(0xFF38BDF8), size: 18),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Konuşma Süresi',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF6366F1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '${_durationMinutes.toInt()} Dakika',
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    SliderTheme(
+                                      data: SliderTheme.of(context).copyWith(
+                                        activeTrackColor: const Color(0xFF6366F1),
+                                        inactiveTrackColor: const Color(0xFF334155),
+                                        thumbColor: const Color(0xFF6366F1),
+                                        overlayColor: const Color(0xFF6366F1).withOpacity(0.2),
+                                      ),
+                                      child: Slider(
+                                        value: _durationMinutes,
+                                        min: 1.0,
+                                        max: 30.0,
+                                        divisions: 29,
+                                        onChanged: (val) {
+                                          setState(() {
+                                            _durationMinutes = val;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    Text(
+                                      'Ortalama Metin Boyutu: ~${_durationMinutes.toInt() * 130} kelime',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF64748B),
+                                        fontSize: 11,
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // 5. Topic Text Field
+                            TextFormField(
+                              key: _topicKey,
+                              focusNode: _topicFocusNode,
+                              controller: _topicController,
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                              maxLines: 5,
+                              decoration: InputDecoration(
+                                labelText: 'Konuşma Konusu / Detaylar',
+                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                                alignLabelWithHint: true,
+                                prefixIcon: const Padding(
+                                  padding: EdgeInsets.only(bottom: 80.0),
+                                  child: Icon(Icons.edit_note_outlined, color: Color(0xFFF43F5E)),
+                                ),
+                                hintText: 'Konuşmada hangi başlıklar yer almalı? Hangi mesajlar verilmeli?',
+                                hintStyle: const TextStyle(color: Color(0xFF475569)),
+                                filled: true,
+                                fillColor: const Color(0xFF1E293B),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Colors.redAccent),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                                ),
+                              ),
+                              validator: (value) =>
+                                  value == null || value.trim().isEmpty ? 'Konuşma detaylarını giriniz' : null,
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Submit Button
+                            ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6366F1),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: Text(
+                                'Konuşma Metnini Hazırla',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../widgets/talk_diff_view.dart';
 
 class FlatTreeNode {
   final Map<String, dynamic> node;
@@ -21,54 +24,121 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   late Map<String, dynamic> _talkTree;
   Map<String, dynamic>? _selectedNode;
   final _instructionController = TextEditingController();
+  Timer? _pollTimer;
 
   bool _isReloading = false;
   bool _isSubmitting = false;
+  bool _viewDiff = false;
   String _errorMessage = '';
+
+  final List<String> _quickSuggestions = [
+    'Daha coşkulu yap',
+    'Daha resmi yap',
+    'Özetle',
+    'Süreyi kısalt',
+    'Girişi güçlendir',
+  ];
 
   @override
   void initState() {
     super.initState();
     _talkTree = widget.talkNode;
+    _selectedNode = _getLatestNode(widget.talkNode);
     _reloadData();
+  }
+
+  Map<String, dynamic> _getLatestNode(Map<String, dynamic> root) {
+    final flatList = _flattenTree(root, 0);
+    if (flatList.isEmpty) return root;
+
+    Map<String, dynamic> latest = flatList.first.node;
+    for (final flat in flatList) {
+      final node = flat.node;
+      final int currentId = (node['id'] as num?)?.toInt() ?? 0;
+      final int latestId = (latest['id'] as num?)?.toInt() ?? 0;
+      if (currentId > latestId) {
+        latest = node;
+      }
+    }
+    return latest;
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _instructionController.dispose();
     super.dispose();
   }
 
+  bool _treeHasPendingOrProcessing(Map<String, dynamic> node) {
+    final status = node['status'] as String? ?? '';
+    if (status == 'pending' || status == 'processing') {
+      return true;
+    }
+    final children = node['children'] as List<dynamic>?;
+    if (children != null) {
+      for (final child in children) {
+        if (_treeHasPendingOrProcessing(child as Map<String, dynamic>)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _checkAndManagePolling() {
+    if (_treeHasPendingOrProcessing(_talkTree)) {
+      _pollTimer ??= Timer.periodic(const Duration(seconds: 2), (_) {
+        _reloadData(silent: true);
+      });
+    } else {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
+  }
+
   // Refetches talks to update the tree structure in memory
-  Future<void> _reloadData() async {
-    setState(() {
-      _isReloading = true;
-      _errorMessage = '';
-    });
+  Future<void> _reloadData({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isReloading = true;
+        _errorMessage = '';
+      });
+    }
     try {
       final talks = await ApiService.getTalkRequests();
-      final freshRoot = talks.firstWhere(
-        (t) => t['id'] == _talkTree['id'],
-        orElse: () => null,
-      );
+      Map<String, dynamic>? freshRoot;
+      for (final t in talks) {
+        if (t != null && t['id'] == _talkTree['id']) {
+          freshRoot = t as Map<String, dynamic>;
+          break;
+        }
+      }
 
-      if (freshRoot != null) {
+      if (freshRoot != null && mounted) {
+        final currentSelectedId = _selectedNode?['id'] as int?;
         setState(() {
-          _talkTree = freshRoot;
-          if (_selectedNode != null) {
-            // Update the selected node reference with updated database info
-            _selectedNode = _findNodeInTree(freshRoot, _selectedNode!['id']) ?? freshRoot;
+          _talkTree = freshRoot!;
+          if (currentSelectedId != null) {
+            _selectedNode = _findNodeInTree(freshRoot, currentSelectedId) ?? _getLatestNode(freshRoot);
+          } else {
+            _selectedNode = _getLatestNode(freshRoot);
           }
         });
+        _checkAndManagePolling();
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Yenilenirken hata oluştu: $e';
-      });
+      if (mounted && !silent) {
+        setState(() {
+          _errorMessage = 'Yenilenirken hata oluştu: $e';
+        });
+      }
     } finally {
-      setState(() {
-        _isReloading = false;
-      });
+      if (mounted && !silent) {
+        setState(() {
+          _isReloading = false;
+        });
+      }
     }
   }
 
@@ -117,6 +187,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       _instructionController.clear();
       setState(() {
         _selectedNode = newRequest;
+        _viewDiff = false;
       });
       await _reloadData();
     } catch (e) {
@@ -127,6 +198,106 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       setState(() {
         _isSubmitting = false;
       });
+    }
+  }
+
+  Future<void> _deleteCurrentTalk() async {
+    final rootId = _talkTree['id'] as int;
+    final topic = _talkTree['topic'] as String? ?? 'Konuşma';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF334155), width: 1),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline, color: Color(0xFFF87171), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Konuşmayı Sil',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '"$topic" başlıklı konuşmayı ve bağlı tüm sürüm geçmişini kalıcı olarak silmek istediğinizden emin misiniz?',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFCBD5E1),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Vazgeç',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF94A3B8),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.delete_forever, size: 18),
+            label: Text(
+              'Sil',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteTalkRequest(rootId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Konuşma başarıyla silindi',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Silme işlemi başarısız: $e'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -156,14 +327,42 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
+  int _countWords(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return 0;
+    return trimmed.split(RegExp(r'\s+')).length;
+  }
+
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Konuşma metni panoya kopyalandı!',
+              style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final flatNodes = _flattenTree(_talkTree, 0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0B0F17),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF161E2E),
         elevation: 0,
         title: Text(
           'Konuşma Dalları ve Sürümleri',
@@ -184,23 +383,30 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF818CF8)),
               ),
             )
           else
             IconButton(
               onPressed: _reloadData,
+              tooltip: 'Verileri Yenile',
               icon: const Icon(Icons.refresh, color: Colors.white),
-            )
+            ),
+          IconButton(
+            onPressed: _deleteCurrentTalk,
+            tooltip: 'Konuşmayı Sil',
+            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFF87171)),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_errorMessage.isNotEmpty) ...[
+            if (_errorMessage.isNotEmpty)
               Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.15),
@@ -212,149 +418,464 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
                 ),
               ),
-              const SizedBox(height: 16),
-            ],
-
-            // Speech Info Header Card
-            Card(
-              color: const Color(0xFF1E293B),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: Color(0xFF334155)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _talkTree['speech_type'] ?? 'Genel Hitabet',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF818CF8),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 850;
+                  if (isWide) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left Panel: Header Info + Version Timeline Tree
+                          SizedBox(
+                            width: 380,
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  _buildHeroHeaderCard(),
+                                  const SizedBox(height: 16),
+                                  _buildTreeSection(flatNodes),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Right Panel: Active Node Content & Revision Form
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: _buildActiveNodeWorkspace(),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Konu: ${_talkTree['topic'] ?? ""}',
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Ortam: ${_talkTree['place'] ?? ""} • Süre: ${_talkTree['duration'] ?? 0} dk • Dil: ${_talkTree['language'] ?? "Türkçe"}',
-                      style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
-                    ),
-                  ],
+                    );
+                  } else {
+                    // Mobile Layout: 1 Column
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildHeroHeaderCard(),
+                          const SizedBox(height: 16),
+                          _buildTreeSection(flatNodes),
+                          const SizedBox(height: 20),
+                          _buildActiveNodeWorkspace(),
+                        ],
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Modern Speech Info Hero Header Card
+  Widget _buildHeroHeaderCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF1E1B4B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF3730A3).withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.4)),
+                ),
+                child: Text(
+                  _talkTree['speech_type'] ?? 'Genel Hitabet',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFA5B4FC),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _talkTree['topic'] ?? 'Konu Belirtilmemiş',
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              height: 1.3,
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildMetaBadge(Icons.location_on_outlined, _talkTree['place'] ?? 'Genel'),
+              _buildMetaBadge(Icons.timer_outlined, '${_talkTree['duration'] ?? 0} dk'),
+              _buildMetaBadge(Icons.language_outlined, _talkTree['language'] ?? 'Türkçe'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Tree Section Title
-            Text(
-              'Sürüm Dallanma Ağacı',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              'İçeriğini incelemek ve güncellemek istediğiniz sürüme tıklayın.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF64748B),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 12),
+  Widget _buildMetaBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Indented Tree Node List
-            Column(
-              children: flatNodes.map((flat) {
-                final node = flat.node;
-                final status = node['status'] as String;
-                final statusColor = _getStatusColor(status);
-                final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
-                final isRoot = node['parent_id'] == null;
-
-                return Padding(
-                  padding: EdgeInsets.only(
-                    left: flat.depth * 24.0,
-                    bottom: 8.0,
+  // Version Branching Tree Section (Timeline visual)
+  Widget _buildTreeSection(List<FlatTreeNode> flatNodes) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161E2E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF243044)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.account_tree_outlined, size: 18, color: Color(0xFF818CF8)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sürüm Dalları',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: Card(
-                    color: isSelected ? const Color(0xFF312E81) : const Color(0xFF1E293B),
-                    shape: RoundedRectangleBorder(
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${flatNodes.length} Sürüm',
+                  style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'İçeriğini görüntülemek istediğiniz sürüme tıklayın.',
+            style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 11),
+          ),
+          const SizedBox(height: 14),
+          Column(
+            children: flatNodes.map((flat) {
+              final node = flat.node;
+              final status = node['status'] as String;
+              final statusColor = _getStatusColor(status);
+              final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
+              final isRoot = node['parent_id'] == null;
+              final indent = (flat.depth * 14.0).clamp(0.0, 42.0);
+
+              return Padding(
+                padding: EdgeInsets.only(left: indent, bottom: 8.0),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedNode = node;
+                      _viewDiff = false;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF312E81) : const Color(0xFF0F172A),
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: isSelected ? const Color(0xFF818CF8) : const Color(0xFF334155),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF818CF8) : const Color(0xFF1E293B),
                         width: isSelected ? 1.5 : 1,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF6366F1).withOpacity(0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : [],
                     ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        setState(() {
-                          _selectedNode = node;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        child: Row(
-                          children: [
-                            // Tree Icon
-                            Icon(
-                              isRoot
-                                  ? Icons.radio_button_checked
-                                  : Icons.subdirectory_arrow_right_outlined,
-                              size: 18,
-                              color: isSelected ? const Color(0xFFC7D2FE) : const Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 8),
-                            // Version Info Label
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Branch Node Icon
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            isRoot
+                                ? Icons.adjust
+                                : Icons.subdirectory_arrow_right_rounded,
+                            size: 16,
+                            color: isSelected
+                                ? const Color(0xFFA5B4FC)
+                                : isRoot
+                                    ? const Color(0xFF818CF8)
+                                    : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Node Text Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
                                   Text(
                                     isRoot
-                                        ? 'Başlangıç Sürümü (#${node['id']})'
-                                        : 'Düzeltme (#${node['id']})',
+                                        ? 'Başlangıç Sürümü'
+                                        : 'Revizyon (#${node['id']})',
                                     style: GoogleFonts.inter(
-                                      color: Colors.white,
+                                      color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
                                       fontSize: 13,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                                     ),
                                   ),
-                                  if (!isRoot) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Talimat: "${node['instruction'] ?? ''}"',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        color: isSelected ? const Color(0xFFC7D2FE) : const Color(0xFF94A3B8),
-                                        fontSize: 11,
+                                  if (isRoot) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF4338CA).withOpacity(0.4),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Root',
+                                        style: GoogleFonts.inter(color: const Color(0xFFC7D2FE), fontSize: 9),
                                       ),
                                     ),
                                   ],
                                 ],
                               ),
+                              if (!isRoot && node['instruction'] != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  '"${node['instruction']}"',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: isSelected ? const Color(0xFFC7D2FE) : const Color(0xFF94A3B8),
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Status indicator & Diff button
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: statusColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _getStatusText(status),
+                                  style: GoogleFonts.inter(
+                                    color: statusColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (!isRoot && status == 'completed') ...[
+                              const SizedBox(height: 6),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedNode = node;
+                                    _viewDiff = true;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.difference_outlined, size: 10, color: Color(0xFFC7D2FE)),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        'Fark',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFC7D2FE),
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Active Node Workspace (Text viewer, Diff toggle, Copy button, Revision Form)
+  Widget _buildActiveNodeWorkspace() {
+    if (_selectedNode == null) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: const Color(0xFF161E2E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF243044)),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.touch_app_outlined, size: 44, color: Color(0xFF475569)),
+              const SizedBox(height: 12),
+              Text(
+                'Detaylarını incelemek için sol listeden bir sürüm seçin.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final parentId = _selectedNode!['parent_id'];
+    final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
+    final isCompleted = _selectedNode!['status'] == 'completed';
+    final text = _selectedNode!['generated_text'] ?? '';
+    final wordCount = _countWords(text);
+    final readTimeMinutes = (wordCount / 130).ceil();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Active Version Header Bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161E2E),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF243044)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              _selectedNode!['parent_id'] == null
+                                  ? 'Başlangıç Sürümü (#${_selectedNode!['id']})'
+                                  : 'Sürüm #${_selectedNode!['id']} İçeriği',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            // Status Chip
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: statusColor.withOpacity(0.3)),
+                                color: _getStatusColor(_selectedNode!['status']).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _getStatusColor(_selectedNode!['status']).withOpacity(0.3)),
                               ),
                               child: Text(
-                                _getStatusText(status),
+                                _getStatusText(_selectedNode!['status']),
                                 style: GoogleFonts.inter(
-                                  color: statusColor,
+                                  color: _getStatusColor(_selectedNode!['status']),
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -362,143 +883,269 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 24),
-            const Divider(color: Color(0xFF1E293B), thickness: 1.5),
-            const SizedBox(height: 16),
-
-            // Detail Panel: Only displayed once a node is clicked
-            if (_selectedNode == null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40.0),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.arrow_upward, size: 36, color: Color(0xFF475569)),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Konuşma metnini okumak ve güncelleme talimatı\ngöndermek için yukarıdaki dallardan bir sürüm seçin.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF64748B),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else ...[
-              // Header for active node detail panel
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Seçili Sürüm (#${_selectedNode!['id']}) İçeriği',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedNode = null;
-                      });
-                    },
-                    icon: const Icon(Icons.close, size: 16),
-                    label: const Text('Kapat'),
-                    style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Generated Text display container
-              Container(
-                padding: const EdgeInsets.all(20),
-                constraints: const BoxConstraints(minHeight: 200),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF334155)),
-                ),
-                child: _selectedNode!['status'] == 'pending' ||
-                        _selectedNode!['status'] == 'processing'
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(color: Color(0xFF6366F1)),
-                            const SizedBox(height: 16),
-                            Text(
-                              _selectedNode!['status'] == 'processing'
-                                  ? 'AI konuşma metninizi yazıyor...'
-                                  : 'Metin sıraya alındı, hazırlanıyor...',
-                              style: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _selectedNode!['status'] == 'failed'
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Metin oluşturulurken hata oluştu:\n${_selectedNode!['error_message'] ?? ""}',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          )
-                        : SelectableText(
-                            _selectedNode!['generated_text'] ?? 'Henüz metin üretilmemiş.',
-                            style: GoogleFonts.roboto(
-                              color: Colors.white,
-                              fontSize: 15,
-                              height: 1.6,
+                        if (_selectedNode!['instruction'] != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Talimat: "${_selectedNode!['instruction']}"',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF94A3B8),
+                              fontSize: 12,
                             ),
                           ),
-              ),
-              const SizedBox(height: 24),
-
-              // Refinement form (displayed only for completed nodes)
-              if (_selectedNode!['status'] == 'completed') ...[
-                Text(
-                  'Bu Sürümü Düzelt / Güncelleştir',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                        ],
+                      ],
+                    ),
                   ),
+                  if (isCompleted && text.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () => _copyToClipboard(text),
+                      icon: const Icon(Icons.copy, size: 14),
+                      label: const Text('Metni Kopyala'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFA5B4FC),
+                        side: const BorderSide(color: Color(0xFF4338CA)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                ],
+              ),
+
+              // View Mode Tabs & Text Stats
+              if (isCompleted) ...[
+                const SizedBox(height: 14),
+                const Divider(color: Color(0xFF243044), height: 1),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Mode Switcher Tabs
+                    if (parentNode != null)
+                      Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Row(
+                              children: [
+                                Icon(Icons.description_outlined, size: 14),
+                                SizedBox(width: 6),
+                                Text('Sürüm Metni'),
+                              ],
+                            ),
+                            selected: !_viewDiff,
+                            onSelected: (_) => setState(() => _viewDiff = false),
+                            selectedColor: const Color(0xFF4F46E5),
+                            backgroundColor: const Color(0xFF0F172A),
+                            labelStyle: GoogleFonts.inter(
+                              color: !_viewDiff ? Colors.white : const Color(0xFF94A3B8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            side: BorderSide(
+                              color: !_viewDiff ? const Color(0xFF6366F1) : const Color(0xFF334155),
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Row(
+                              children: [
+                                Icon(Icons.difference_outlined, size: 14),
+                                SizedBox(width: 6),
+                                Text('Değişiklikler (Diff)'),
+                              ],
+                            ),
+                            selected: _viewDiff,
+                            onSelected: (_) => setState(() => _viewDiff = true),
+                            selectedColor: const Color(0xFF4F46E5),
+                            backgroundColor: const Color(0xFF0F172A),
+                            labelStyle: GoogleFonts.inter(
+                              color: _viewDiff ? Colors.white : const Color(0xFF94A3B8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            side: BorderSide(
+                              color: _viewDiff ? const Color(0xFF6366F1) : const Color(0xFF334155),
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        'Ana Sürüm Metni',
+                        style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
+                      ),
+
+                    // Stats (Word count & Reading duration)
+                    if (!_viewDiff && text.isNotEmpty)
+                      Row(
+                        children: [
+                          Icon(Icons.text_snippet_outlined, size: 13, color: const Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$wordCount Kelime',
+                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(Icons.record_voice_over_outlined, size: 13, color: const Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '~$readTimeMinutes dk okuma',
+                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Text Content / Diff Viewer Container
+        if (_viewDiff && parentNode != null && isCompleted)
+          TalkDiffView(
+            parentText: parentNode['generated_text'] ?? '',
+            childText: text,
+            parentId: parentNode['id'],
+            childId: _selectedNode!['id'],
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(20),
+            constraints: const BoxConstraints(minHeight: 240),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161E2E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF243044)),
+            ),
+            child: _selectedNode!['status'] == 'pending' ||
+                    _selectedNode!['status'] == 'processing'
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(color: Color(0xFF818CF8)),
+                          const SizedBox(height: 16),
+                          Text(
+                            _selectedNode!['status'] == 'processing'
+                                ? 'AI yapay zeka konuşma metninizi yazıyor...'
+                                : 'Metin sıraya alındı, hazırlanıyor...',
+                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _selectedNode!['status'] == 'failed'
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Metin oluşturulurken hata oluştu:\n${_selectedNode!['error_message'] ?? ""}',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SelectableText(
+                        text.isEmpty ? 'Henüz metin üretilmemiş.' : text,
+                        style: GoogleFonts.roboto(
+                          color: Colors.white,
+                          fontSize: 15,
+                          height: 1.65,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+          ),
+        const SizedBox(height: 16),
+
+        // Revision / Refinement Input Form
+        if (isCompleted)
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161E2E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF243044)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF818CF8)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Bu Sürümü Revize Et / AI ile Güncelle',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
+
+                // Quick Suggestion Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _quickSuggestions.map((suggestion) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ActionChip(
+                          label: Text(suggestion),
+                          onPressed: () {
+                            setState(() {
+                              _instructionController.text = suggestion;
+                            });
+                          },
+                          backgroundColor: const Color(0xFF0F172A),
+                          labelStyle: GoogleFonts.inter(
+                            color: const Color(0xFFC7D2FE),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Input Field & Action Button
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: TextFormField(
                         controller: _instructionController,
-                        style: const TextStyle(color: Colors.white),
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                        maxLines: 2,
+                        minLines: 1,
                         decoration: InputDecoration(
                           hintText: 'Örn: Dili daha coşkulu yap, süresini biraz kısalt...',
-                          hintStyle: const TextStyle(color: Color(0xFF475569)),
+                          hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
                           filled: true,
-                          fillColor: const Color(0xFF1E293B),
+                          fillColor: const Color(0xFF0F172A),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF334155)),
+                            borderSide: const BorderSide(color: Color(0xFF243044)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -508,29 +1155,33 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    ElevatedButton(
+                    ElevatedButton.icon(
                       onPressed: _isSubmitting ? null : _submitUpdate,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
+                        backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
                       ),
-                      child: _isSubmitting
+                      icon: _isSubmitting
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 16,
+                              height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
-                          : const Icon(Icons.send),
+                          : const Icon(Icons.send_rounded, size: 16),
+                      label: Text(
+                        _isSubmitting ? 'Gönderiliyor...' : 'Revize Et',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
                     ),
                   ],
                 ),
               ],
-            ]
-          ],
-        ),
-      ),
+            ),
+          ),
+      ],
     );
   }
 }
