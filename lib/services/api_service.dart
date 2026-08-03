@@ -123,4 +123,14 @@ class ApiService {
     );
     return _parseResponse(response) as Map<String, dynamic>;
   }
+
+  // Delete Dialogue Request
+  static Future<void> deleteTalkRequest(int id) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('${Constants.baseUrl}/talks/$id'),
+      headers: headers,
+    );
+    _parseResponse(response);
+  }
 }
