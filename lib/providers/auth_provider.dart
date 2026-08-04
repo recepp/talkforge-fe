@@ -8,12 +8,14 @@ class AuthProvider extends ChangeNotifier {
   String? _email;
   String? _nickname;
   String? _role;
+  String? _language;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
   String? get email => _email;
   String? get nickname => _nickname;
   String? get role => _role;
+  String get language => _language ?? 'tr';
 
   AuthProvider() {
     checkAuthStatus();
@@ -28,6 +30,7 @@ class AuthProvider extends ChangeNotifier {
       _email = prefs.getString('user_email');
       _nickname = prefs.getString('user_nickname');
       _role = prefs.getString('user_role');
+      _language = prefs.getString('user_language') ?? 'tr';
     } else {
       _isAuthenticated = false;
     }
@@ -45,6 +48,7 @@ class AuthProvider extends ChangeNotifier {
       _email = data['email'];
       _nickname = data['nickname'];
       _role = data['role'];
+      _language = data['language'] ?? 'tr';
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
@@ -64,12 +68,24 @@ class AuthProvider extends ChangeNotifier {
       _email = data['email'];
       _nickname = data['nickname'];
       _role = data['role'];
+      _language = data['language'] ?? 'tr';
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Update Language Preference
+  Future<void> updateLanguage(String newLang) async {
+    try {
+      await ApiService.updateLanguage(newLang);
+      _language = newLang;
+      notifyListeners();
+    } catch (e) {
+      rethrow;
     }
   }
 
@@ -80,12 +96,14 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('user_email');
     await prefs.remove('user_nickname');
     await prefs.remove('user_role');
+    await prefs.remove('user_language');
     await prefs.remove('user_id');
 
     _isAuthenticated = false;
     _email = null;
     _nickname = null;
     _role = null;
+    _language = null;
     notifyListeners();
   }
 }

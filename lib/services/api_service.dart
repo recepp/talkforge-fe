@@ -51,6 +51,7 @@ class ApiService {
     await prefs.setString('user_email', data['email'] ?? '');
     await prefs.setString('user_nickname', data['nickname'] ?? '');
     await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_language', data['language'] ?? 'tr');
     await prefs.setInt('user_id', data['user_id'] ?? 0);
 
     return data;
@@ -75,8 +76,23 @@ class ApiService {
     await prefs.setString('user_email', data['email'] ?? '');
     await prefs.setString('user_nickname', data['nickname'] ?? '');
     await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_language', data['language'] ?? 'tr');
     await prefs.setInt('user_id', data['user_id'] ?? 0);
 
+    return data;
+  }
+
+  // Update User Language Preference
+  static Future<Map<String, dynamic>> updateLanguage(String language) async {
+    final headers = await _getHeaders();
+    final response = await http.put(
+      Uri.parse('${Constants.baseUrl}/user/language'),
+      headers: headers,
+      body: jsonEncode({'language': language}),
+    );
+    final data = _parseResponse(response) as Map<String, dynamic>;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_language', language);
     return data;
   }
 

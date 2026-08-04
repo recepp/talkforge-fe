@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,7 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = Provider.of<AuthProvider>(context).isLoading;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isLoading = authProvider.isLoading;
+    final lang = authProvider.language;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -107,8 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _isSignUp
-                        ? 'Konuşma hazırlıklarınızı oluşturmak için kaydolun.'
-                        : 'Konuşma hazırlıklarınıza erişmek için giriş yapın.',
+                        ? AppTranslations.tr('signup_subtitle', lang)
+                        : AppTranslations.tr('login_subtitle', lang),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,
@@ -139,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _nicknameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Kullanıcı Adı / Rumuz',
+                        labelText: AppTranslations.tr('nickname_label', lang),
                         labelStyle: const TextStyle(color: Color(0xFF64748B)),
                         prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
                         filled: true,
@@ -154,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       validator: (value) =>
-                          value == null || value.trim().isEmpty ? 'Kullanıcı adı giriniz' : null,
+                          value == null || value.trim().isEmpty ? AppTranslations.tr('nickname_required', lang) : null,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -165,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: const TextStyle(color: Colors.white),
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText: 'E-posta',
+                      labelText: AppTranslations.tr('email_label', lang),
                       labelStyle: const TextStyle(color: Color(0xFF64748B)),
                       prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF64748B)),
                       filled: true,
@@ -180,9 +183,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'E-posta adresi giriniz';
+                      if (value == null || value.isEmpty) return AppTranslations.tr('email_required', lang);
                       if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                        return 'Geçerli bir e-posta adresi giriniz';
+                        return AppTranslations.tr('email_invalid', lang);
                       }
                       return null;
                     },
@@ -195,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: const TextStyle(color: Colors.white),
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: 'Şifre',
+                      labelText: AppTranslations.tr('password_label', lang),
                       labelStyle: const TextStyle(color: Color(0xFF64748B)),
                       prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
                       filled: true,
@@ -210,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     validator: (value) => value == null || value.length < 4
-                        ? 'Şifre en az 4 karakter olmalıdır'
+                        ? AppTranslations.tr('password_short', lang)
                         : null,
                   ),
                   const SizedBox(height: 24),
@@ -237,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : Text(
-                            _isSignUp ? 'Kayıt Ol' : 'Giriş Yap',
+                            _isSignUp ? AppTranslations.tr('register', lang) : AppTranslations.tr('login', lang),
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -259,8 +262,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Text(
                       _isSignUp
-                          ? 'Zaten hesabınız var mı? Giriş yapın'
-                          : 'Hesabınız yok mu? Yeni hesap oluşturun',
+                          ? AppTranslations.tr('already_have_account', lang)
+                          : AppTranslations.tr('dont_have_account', lang),
                       style: GoogleFonts.inter(fontSize: 13),
                     ),
                   ),

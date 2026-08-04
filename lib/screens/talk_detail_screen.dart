@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../widgets/talk_diff_view.dart';
 
@@ -31,13 +34,15 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   bool _viewDiff = false;
   String _errorMessage = '';
 
-  final List<String> _quickSuggestions = [
-    'Daha coşkulu yap',
-    'Daha resmi yap',
-    'Özetle',
-    'Süreyi kısalt',
-    'Girişi güçlendir',
-  ];
+  List<String> _getQuickSuggestions(String lang) {
+    return [
+      AppTranslations.tr('quick_more_enthusiastic', lang),
+      AppTranslations.tr('quick_more_formal', lang),
+      AppTranslations.tr('quick_summarize', lang),
+      AppTranslations.tr('quick_shorten_duration', lang),
+      AppTranslations.tr('quick_strengthen_intro', lang),
+    ];
+  }
 
   @override
   void initState() {
@@ -97,7 +102,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  // Refetches talks to update the tree structure in memory
   Future<void> _reloadData({bool silent = false}) async {
     if (!silent) {
       setState(() {
@@ -130,7 +134,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     } catch (e) {
       if (mounted && !silent) {
         setState(() {
-          _errorMessage = 'Yenilenirken hata oluştu: $e';
+          _errorMessage = 'Error: $e';
         });
       }
     } finally {
@@ -142,7 +146,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  // Recursive search to locate active node inside tree structure
   Map<String, dynamic>? _findNodeInTree(Map<String, dynamic> node, int id) {
     if (node['id'] == id) return node;
     final children = node['children'] as List<dynamic>?;
@@ -155,7 +158,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return null;
   }
 
-  // Flatten the recursive parent-child tree structure into a flat list for linear rendering
   List<FlatTreeNode> _flattenTree(Map<String, dynamic> root, int depth) {
     List<FlatTreeNode> list = [FlatTreeNode(root, depth)];
     final children = root['children'] as List<dynamic>?;
@@ -167,7 +169,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return list;
   }
 
-  // Submit update rewrite instruction
   Future<void> _submitUpdate() async {
     if (_selectedNode == null) return;
     final instruction = _instructionController.text.trim();
@@ -202,8 +203,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   Future<void> _deleteCurrentTalk() async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
     final rootId = _talkTree['id'] as int;
-    final topic = _talkTree['topic'] as String? ?? 'Konuşma';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -225,7 +226,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Konuşmayı Sil',
+              AppTranslations.tr('delete', lang),
               style: GoogleFonts.inter(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -235,7 +236,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ],
         ),
         content: Text(
-          '"$topic" başlıklı konuşmayı ve bağlı tüm sürüm geçmişini kalıcı olarak silmek istediğinizden emin misiniz?',
+          AppTranslations.tr('confirm_delete', lang),
           style: GoogleFonts.inter(
             color: const Color(0xFFCBD5E1),
             fontSize: 14,
@@ -246,7 +247,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              'Vazgeç',
+              AppTranslations.tr('cancel', lang),
               style: GoogleFonts.inter(
                 color: const Color(0xFF94A3B8),
                 fontWeight: FontWeight.w600,
@@ -257,7 +258,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.delete_forever, size: 18),
             label: Text(
-              'Sil',
+              AppTranslations.tr('delete', lang),
               style: GoogleFonts.inter(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
@@ -275,23 +276,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       try {
         await ApiService.deleteTalkRequest(rootId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Konuşma başarıyla silindi',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-              ),
-              backgroundColor: const Color(0xFF10B981),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
           Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Silme işlemi başarısız: $e'),
+              content: Text('${AppTranslations.tr('error', lang)}: $e'),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
             ),
@@ -314,16 +305,16 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  String _getStatusText(String status) {
+  String _getStatusText(String status, String lang) {
     switch (status) {
       case 'completed':
-        return 'Tamamlandı';
+        return AppTranslations.tr('status_completed', lang);
       case 'processing':
-        return 'Hazırlanıyor';
+        return AppTranslations.tr('status_generating', lang);
       case 'failed':
-        return 'Hata';
+        return AppTranslations.tr('status_failed', lang);
       default:
-        return 'Bekliyor';
+        return AppTranslations.tr('status_pending', lang);
     }
   }
 
@@ -333,7 +324,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return trimmed.split(RegExp(r'\s+')).length;
   }
 
-  void _copyToClipboard(String text) {
+  void _copyToClipboard(String text, String lang) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -342,7 +333,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             const Icon(Icons.check_circle, color: Colors.white, size: 18),
             const SizedBox(width: 8),
             Text(
-              'Konuşma metni panoya kopyalandı!',
+              AppTranslations.tr('speech_copied', lang),
               style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ],
@@ -357,6 +348,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final lang = authProvider.language;
     final flatNodes = _flattenTree(_talkTree, 0);
 
     return Scaffold(
@@ -365,7 +358,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         backgroundColor: const Color(0xFF161E2E),
         elevation: 0,
         title: Text(
-          'Konuşma Dalları ve Sürümleri',
+          AppTranslations.tr('versions', lang),
           style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -389,12 +382,12 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           else
             IconButton(
               onPressed: _reloadData,
-              tooltip: 'Verileri Yenile',
+              tooltip: AppTranslations.tr('refresh', lang),
               icon: const Icon(Icons.refresh, color: Colors.white),
             ),
           IconButton(
             onPressed: _deleteCurrentTalk,
-            tooltip: 'Konuşmayı Sil',
+            tooltip: AppTranslations.tr('delete', lang),
             icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFF87171)),
           ),
           const SizedBox(width: 8),
@@ -428,41 +421,38 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Left Panel: Header Info + Version Timeline Tree
                           SizedBox(
                             width: 380,
                             child: SingleChildScrollView(
                               child: Column(
                                 children: [
-                                  _buildHeroHeaderCard(),
+                                  _buildHeroHeaderCard(lang),
                                   const SizedBox(height: 16),
-                                  _buildTreeSection(flatNodes),
+                                  _buildTreeSection(flatNodes, lang),
                                 ],
                               ),
                             ),
                           ),
                           const SizedBox(width: 16),
-                          // Right Panel: Active Node Content & Revision Form
                           Expanded(
                             child: SingleChildScrollView(
-                              child: _buildActiveNodeWorkspace(),
+                              child: _buildActiveNodeWorkspace(lang),
                             ),
                           ),
                         ],
                       ),
                     );
                   } else {
-                    // Mobile Layout: 1 Column
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _buildHeroHeaderCard(),
+                          _buildHeroHeaderCard(lang),
                           const SizedBox(height: 16),
-                          _buildTreeSection(flatNodes),
+                          _buildTreeSection(flatNodes, lang),
                           const SizedBox(height: 20),
-                          _buildActiveNodeWorkspace(),
+                          _buildActiveNodeWorkspace(lang),
                         ],
                       ),
                     );
@@ -476,8 +466,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  // Modern Speech Info Hero Header Card
-  Widget _buildHeroHeaderCard() {
+  Widget _buildHeroHeaderCard(String lang) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -510,7 +499,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.4)),
                 ),
                 child: Text(
-                  _talkTree['speech_type'] ?? 'Genel Hitabet',
+                  AppTranslations.translateSpeechType(_talkTree['speech_type'], lang),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFA5B4FC),
                     fontSize: 11,
@@ -522,7 +511,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            _talkTree['topic'] ?? 'Konu Belirtilmemiş',
+            _talkTree['topic'] ?? '',
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 17,
@@ -535,9 +524,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildMetaBadge(Icons.location_on_outlined, _talkTree['place'] ?? 'Genel'),
-              _buildMetaBadge(Icons.timer_outlined, '${_talkTree['duration'] ?? 0} dk'),
-              _buildMetaBadge(Icons.language_outlined, _talkTree['language'] ?? 'Türkçe'),
+              _buildMetaBadge(Icons.location_on_outlined, _talkTree['place'] ?? ''),
+              _buildMetaBadge(Icons.timer_outlined, '${_talkTree['duration'] ?? 0} ${AppTranslations.tr('minutes', lang)}'),
+              _buildMetaBadge(Icons.language_outlined, AppTranslations.translateLanguageName(_talkTree['language'], lang)),
             ],
           ),
         ],
@@ -567,8 +556,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  // Version Branching Tree Section (Timeline visual)
-  Widget _buildTreeSection(List<FlatTreeNode> flatNodes) {
+  Widget _buildTreeSection(List<FlatTreeNode> flatNodes, String lang) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -587,7 +575,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   const Icon(Icons.account_tree_outlined, size: 18, color: Color(0xFF818CF8)),
                   const SizedBox(width: 8),
                   Text(
-                    'Sürüm Dalları',
+                    AppTranslations.tr('versions', lang),
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 15,
@@ -603,16 +591,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${flatNodes.length} Sürüm',
+                  '${flatNodes.length} ${AppTranslations.tr('versions', lang)}',
                   style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'İçeriğini görüntülemek istediğiniz sürüme tıklayın.',
-            style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 11),
           ),
           const SizedBox(height: 14),
           Column(
@@ -643,67 +626,32 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         color: isSelected ? const Color(0xFF818CF8) : const Color(0xFF1E293B),
                         width: isSelected ? 1.5 : 1,
                       ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: const Color(0xFF6366F1).withOpacity(0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              )
-                            ]
-                          : [],
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Branch Node Icon
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Icon(
-                            isRoot
-                                ? Icons.adjust
-                                : Icons.subdirectory_arrow_right_rounded,
+                            isRoot ? Icons.adjust : Icons.subdirectory_arrow_right_rounded,
                             size: 16,
-                            color: isSelected
-                                ? const Color(0xFFA5B4FC)
-                                : isRoot
-                                    ? const Color(0xFF818CF8)
-                                    : const Color(0xFF64748B),
+                            color: isSelected ? const Color(0xFFA5B4FC) : const Color(0xFF818CF8),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // Node Text Info
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    isRoot
-                                        ? 'Başlangıç Sürümü'
-                                        : 'Revizyon (#${node['id']})',
-                                    style: GoogleFonts.inter(
-                                      color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
-                                      fontSize: 13,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (isRoot) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF4338CA).withOpacity(0.4),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        'Root',
-                                        style: GoogleFonts.inter(color: const Color(0xFFC7D2FE), fontSize: 9),
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                              Text(
+                                isRoot
+                                    ? '${AppTranslations.tr("version", lang)} #1 (Root)'
+                                    : '${AppTranslations.tr("version", lang)} (#${node['id']})',
+                                style: GoogleFonts.inter(
+                                  color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                ),
                               ),
                               if (!isRoot && node['instruction'] != null) ...[
                                 const SizedBox(height: 4),
@@ -722,67 +670,17 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Status indicator & Diff button
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _getStatusText(status),
-                                  style: GoogleFonts.inter(
-                                    color: statusColor,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (!isRoot && status == 'completed') ...[
-                              const SizedBox(height: 6),
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedNode = node;
-                                    _viewDiff = true;
-                                  });
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.3)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.difference_outlined, size: 10, color: Color(0xFFC7D2FE)),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        'Fark',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFC7D2FE),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                            Text(
+                              _getStatusText(status, lang),
+                              style: GoogleFonts.inter(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ],
@@ -797,32 +695,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  // Active Node Workspace (Text viewer, Diff toggle, Copy button, Revision Form)
-  Widget _buildActiveNodeWorkspace() {
-    if (_selectedNode == null) {
-      return Container(
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: const Color(0xFF161E2E),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF243044)),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.touch_app_outlined, size: 44, color: Color(0xFF475569)),
-              const SizedBox(height: 12),
-              Text(
-                'Detaylarını incelemek için sol listeden bir sürüm seçin.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _buildActiveNodeWorkspace(String lang) {
+    if (_selectedNode == null) return const SizedBox.shrink();
 
     final parentId = _selectedNode!['parent_id'];
     final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
@@ -830,11 +704,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final text = _selectedNode!['generated_text'] ?? '';
     final wordCount = _countWords(text);
     final readTimeMinutes = (wordCount / 130).ceil();
+    final suggestions = _getQuickSuggestions(lang);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Active Version Header Bar
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -852,45 +726,19 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              _selectedNode!['parent_id'] == null
-                                  ? 'Başlangıç Sürümü (#${_selectedNode!['id']})'
-                                  : 'Sürüm #${_selectedNode!['id']} İçeriği',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(_selectedNode!['status']).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: _getStatusColor(_selectedNode!['status']).withOpacity(0.3)),
-                              ),
-                              child: Text(
-                                _getStatusText(_selectedNode!['status']),
-                                style: GoogleFonts.inter(
-                                  color: _getStatusColor(_selectedNode!['status']),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          '${AppTranslations.tr("version", lang)} #${_selectedNode!['id']}',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         if (_selectedNode!['instruction'] != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Talimat: "${_selectedNode!['instruction']}"',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF94A3B8),
-                              fontSize: 12,
-                            ),
+                            '"${_selectedNode!['instruction']}"',
+                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
                           ),
                         ],
                       ],
@@ -898,9 +746,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   ),
                   if (isCompleted && text.isNotEmpty)
                     OutlinedButton.icon(
-                      onPressed: () => _copyToClipboard(text),
+                      onPressed: () => _copyToClipboard(text, lang),
                       icon: const Icon(Icons.copy, size: 14),
-                      label: const Text('Metni Kopyala'),
+                      label: Text(AppTranslations.tr('copy_speech', lang)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFA5B4FC),
                         side: const BorderSide(color: Color(0xFF4338CA)),
@@ -910,8 +758,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     ),
                 ],
               ),
-
-              // View Mode Tabs & Text Stats
               if (isCompleted) ...[
                 const SizedBox(height: 14),
                 const Divider(color: Color(0xFF243044), height: 1),
@@ -919,18 +765,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Mode Switcher Tabs
                     if (parentNode != null)
                       Row(
                         children: [
                           ChoiceChip(
-                            label: const Row(
-                              children: [
-                                Icon(Icons.description_outlined, size: 14),
-                                SizedBox(width: 6),
-                                Text('Sürüm Metni'),
-                              ],
-                            ),
+                            label: Text(AppTranslations.tr('view_full_text', lang)),
                             selected: !_viewDiff,
                             onSelected: (_) => setState(() => _viewDiff = false),
                             selectedColor: const Color(0xFF4F46E5),
@@ -940,20 +779,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
-                            side: BorderSide(
-                              color: !_viewDiff ? const Color(0xFF6366F1) : const Color(0xFF334155),
-                            ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
-                            label: const Row(
-                              children: [
-                                Icon(Icons.difference_outlined, size: 14),
-                                SizedBox(width: 6),
-                                Text('Değişiklikler (Diff)'),
-                              ],
-                            ),
+                            label: Text(AppTranslations.tr('view_diff', lang)),
                             selected: _viewDiff,
                             onSelected: (_) => setState(() => _viewDiff = true),
                             selectedColor: const Color(0xFF4F46E5),
@@ -963,37 +792,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
-                            side: BorderSide(
-                              color: _viewDiff ? const Color(0xFF6366F1) : const Color(0xFF334155),
-                            ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         ],
-                      )
-                    else
-                      Text(
-                        'Ana Sürüm Metni',
-                        style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
                       ),
-
-                    // Stats (Word count & Reading duration)
                     if (!_viewDiff && text.isNotEmpty)
-                      Row(
-                        children: [
-                          Icon(Icons.text_snippet_outlined, size: 13, color: const Color(0xFF64748B)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$wordCount Kelime',
-                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(Icons.record_voice_over_outlined, size: 13, color: const Color(0xFF64748B)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '~$readTimeMinutes dk okuma',
-                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
-                          ),
-                        ],
+                      Text(
+                        '$wordCount ${AppTranslations.tr("words", lang)} • ~$readTimeMinutes ${AppTranslations.tr("minutes", lang)}',
+                        style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
                       ),
                   ],
                 ),
@@ -1002,8 +807,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-
-        // Text Content / Diff Viewer Container
         if (_viewDiff && parentNode != null && isCompleted)
           TalkDiffView(
             parentText: parentNode['generated_text'] ?? '',
@@ -1020,57 +823,30 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFF243044)),
             ),
-            child: _selectedNode!['status'] == 'pending' ||
-                    _selectedNode!['status'] == 'processing'
+            child: _selectedNode!['status'] == 'pending' || _selectedNode!['status'] == 'processing'
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircularProgressIndicator(color: Color(0xFF818CF8)),
-                          const SizedBox(height: 16),
-                          Text(
-                            _selectedNode!['status'] == 'processing'
-                                ? 'AI yapay zeka konuşma metninizi yazıyor...'
-                                : 'Metin sıraya alındı, hazırlanıyor...',
-                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(color: Color(0xFF818CF8)),
+                        const SizedBox(height: 16),
+                        Text(
+                          AppTranslations.tr('status_generating', lang),
+                          style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
+                        ),
+                      ],
                     ),
                   )
-                : _selectedNode!['status'] == 'failed'
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Metin oluşturulurken hata oluştu:\n${_selectedNode!['error_message'] ?? ""}',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : SelectableText(
-                        text.isEmpty ? 'Henüz metin üretilmemiş.' : text,
-                        style: GoogleFonts.roboto(
-                          color: Colors.white,
-                          fontSize: 15,
-                          height: 1.65,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
+                : SelectableText(
+                    text,
+                    style: GoogleFonts.roboto(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.65,
+                    ),
+                  ),
           ),
         const SizedBox(height: 16),
-
-        // Revision / Refinement Input Form
         if (isCompleted)
           Container(
             padding: const EdgeInsets.all(18),
@@ -1087,7 +863,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF818CF8)),
                     const SizedBox(width: 8),
                     Text(
-                      'Bu Sürümü Revize Et / AI ile Güncelle',
+                      AppTranslations.tr('update_instruction', lang),
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 14,
@@ -1097,12 +873,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
-
-                // Quick Suggestion Chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _quickSuggestions.map((suggestion) {
+                    children: suggestions.map((suggestion) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: ActionChip(
@@ -1126,8 +900,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Input Field & Action Button
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -1138,7 +910,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         maxLines: 2,
                         minLines: 1,
                         decoration: InputDecoration(
-                          hintText: 'Örn: Dili daha coşkulu yap, süresini biraz kısalt...',
+                          hintText: AppTranslations.tr('update_instruction_hint', lang),
                           hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
                           filled: true,
                           fillColor: const Color(0xFF0F172A),
@@ -1172,7 +944,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             )
                           : const Icon(Icons.send_rounded, size: 16),
                       label: Text(
-                        _isSubmitting ? 'Gönderiliyor...' : 'Revize Et',
+                        _isSubmitting
+                            ? AppTranslations.tr('status_generating', lang)
+                            : AppTranslations.tr('apply_changes', lang),
                         style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),

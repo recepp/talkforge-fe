@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import 'talk_detail_screen.dart';
 
@@ -12,14 +15,15 @@ class CreateTalkDialog extends StatefulWidget {
 
 class _CreateTalkDialogState extends State<CreateTalkDialog> {
   final _formKey = GlobalKey<FormState>();
+  bool _initializedLang = false;
 
   final List<Map<String, String>> _speechTypeItems = [
-    {'title': 'Siyasetçi Konuşması', 'symbol': '🏛️'},
-    {'title': 'İmam Vaazı / Hutbe', 'symbol': '🕌'},
-    {'title': 'Öğretmen Sınıfa Tanışma Konuşması', 'symbol': '🎓'},
-    {'title': 'Öğretmen Sınıfa Veda Konuşması', 'symbol': '👋'},
-    {'title': 'Genel İş Sunumu / Hitabet', 'symbol': '💼'},
-    {'title': 'Düğün / Kutlama Konuşması', 'symbol': '🥂'},
+    {'code': 'speech_type_politician', 'title': 'Siyasetçi Konuşması', 'symbol': '🏛️'},
+    {'code': 'speech_type_imam', 'title': 'İmam Vaazı / Hutbe', 'symbol': '🕌'},
+    {'code': 'speech_type_teacher_welcome', 'title': 'Öğretmen Sınıfa Tanışma Konuşması', 'symbol': '🎓'},
+    {'code': 'speech_type_teacher_farewell', 'title': 'Öğretmen Sınıfa Veda Konuşması', 'symbol': '👋'},
+    {'code': 'speech_type_business', 'title': 'Genel İş Sunumu / Hitabet', 'symbol': '💼'},
+    {'code': 'speech_type_wedding', 'title': 'Düğün / Kutlama Konuşması', 'symbol': '🥂'},
   ];
 
   final List<Map<String, String>> _languageItems = [
@@ -27,6 +31,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
     {'code': 'İngilizce', 'symbol': '🇬🇧'},
     {'code': 'Almanca', 'symbol': '🇩🇪'},
     {'code': 'Fransızca', 'symbol': '🇫🇷'},
+    {'code': 'İspanyolca', 'symbol': '🇪🇸'},
     {'code': 'Arapça', 'symbol': '🇸🇦'},
     {'code': 'Rusça', 'symbol': '🇷🇺'},
   ];
@@ -45,6 +50,28 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
 
   bool _isLoading = false;
   String _errorMessage = '';
+
+  static String _getLangNameFromCode(String code) {
+    switch (code) {
+      case 'en': return 'İngilizce';
+      case 'de': return 'Almanca';
+      case 'fr': return 'Fransızca';
+      case 'es': return 'İspanyolca';
+      case 'ar': return 'Arapça';
+      case 'ru': return 'Rusça';
+      default: return 'Türkçe';
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedLang) {
+      final userLangCode = Provider.of<AuthProvider>(context, listen: false).language;
+      _selectedLanguage = _getLangNameFromCode(userLangCode);
+      _initializedLang = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -115,6 +142,9 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final lang = authProvider.language;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -157,7 +187,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Yeni Konuşma Hazırla',
+                        AppTranslations.tr('create_talk_title', lang),
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -178,16 +208,16 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
             // Dialog Content
             Flexible(
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircularProgressIndicator(color: Color(0xFF6366F1)),
-                          SizedBox(height: 24),
+                          const CircularProgressIndicator(color: Color(0xFF6366F1)),
+                          const SizedBox(height: 24),
                           Text(
-                            'AI konuşma metninizi hazırlıyor...\nLütfen pencereyi kapatmayın.',
+                            AppTranslations.tr('generating_loader', lang),
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
                           )
                         ],
                       ),
@@ -215,7 +245,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               const SizedBox(height: 20),
                             ],
 
-                            // 1. Speech Type Dropdown with Rounded Popup Menu & Symbols
+                            // 1. Speech Type Dropdown
                             DropdownButtonFormField<String>(
                               value: _selectedSpeechType,
                               borderRadius: BorderRadius.circular(16),
@@ -224,7 +254,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF818CF8)),
                               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
-                                labelText: 'Konuşma Amacı / Rolü',
+                                labelText: AppTranslations.tr('speech_purpose', lang),
                                 labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                                 prefixIcon: const Icon(Icons.campaign_outlined, color: Color(0xFF818CF8)),
                                 filled: true,
@@ -240,7 +270,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               ),
                               selectedItemBuilder: (context) {
                                 return _speechTypeItems.map((item) {
-                                  final title = item['title']!;
+                                  final title = AppTranslations.tr(item['code']!, lang);
                                   final symbol = item['symbol']!;
                                   return Row(
                                     children: [
@@ -258,12 +288,12 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                 }).toList();
                               },
                               items: _speechTypeItems.map((item) {
-                                final title = item['title']!;
+                                final title = AppTranslations.tr(item['code']!, lang);
                                 final symbol = item['symbol']!;
-                                final isSel = _selectedSpeechType == title;
+                                final isSel = _selectedSpeechType == item['title'];
 
                                 return DropdownMenuItem<String>(
-                                  value: title,
+                                  value: item['title'],
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                     child: Row(
@@ -314,7 +344,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                             ),
                             const SizedBox(height: 20),
 
-                            // 2. Language Dropdown with Rounded Popup Menu & Symbols
+                            // 2. Language Dropdown
                             DropdownButtonFormField<String>(
                               value: _selectedLanguage,
                               borderRadius: BorderRadius.circular(16),
@@ -323,7 +353,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF34D399)),
                               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
-                                labelText: 'Konuşma Dili',
+                                labelText: AppTranslations.tr('speech_lang', lang),
                                 labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                                 prefixIcon: const Icon(Icons.language_outlined, color: Color(0xFF34D399)),
                                 filled: true,
@@ -341,12 +371,13 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                 return _languageItems.map((item) {
                                   final code = item['code']!;
                                   final symbol = item['symbol']!;
+                                  final translatedLang = AppTranslations.translateLanguageName(code, lang);
                                   return Row(
                                     children: [
                                       Text(symbol, style: const TextStyle(fontSize: 16)),
                                       const SizedBox(width: 10),
                                       Text(
-                                        code,
+                                        translatedLang,
                                         style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
                                       ),
                                     ],
@@ -356,6 +387,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               items: _languageItems.map((item) {
                                 final code = item['code']!;
                                 final symbol = item['symbol']!;
+                                final translatedLang = AppTranslations.translateLanguageName(code, lang);
                                 final isSel = _selectedLanguage == code;
 
                                 return DropdownMenuItem<String>(
@@ -380,7 +412,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
-                                            code,
+                                            translatedLang,
                                             style: GoogleFonts.inter(
                                               color: isSel ? Colors.white : const Color(0xFFCBD5E1),
                                               fontSize: 13,
@@ -416,10 +448,10 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               controller: _placeController,
                               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                               decoration: InputDecoration(
-                                labelText: 'Konuşma Yapılacak Yer / Ortam',
+                                labelText: AppTranslations.tr('speech_place', lang),
                                 labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                                 prefixIcon: const Icon(Icons.place_outlined, color: Color(0xFFF59E0B)),
-                                hintText: 'Örn: Belediye Konferans Salonu, Merkez Camii, Sınıf 3-A',
+                                hintText: AppTranslations.tr('speech_place_hint', lang),
                                 hintStyle: const TextStyle(color: Color(0xFF475569)),
                                 filled: true,
                                 fillColor: const Color(0xFF1E293B),
@@ -441,7 +473,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                 ),
                               ),
                               validator: (value) =>
-                                  value == null || value.trim().isEmpty ? 'Konuşma yeri giriniz' : null,
+                                  value == null || value.trim().isEmpty ? AppTranslations.tr('speech_place_required', lang) : null,
                             ),
                             const SizedBox(height: 20),
 
@@ -466,7 +498,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                             const Icon(Icons.timer_outlined, color: Color(0xFF38BDF8), size: 18),
                                             const SizedBox(width: 8),
                                             Text(
-                                              'Konuşma Süresi',
+                                              AppTranslations.tr('speech_duration', lang),
                                               style: GoogleFonts.inter(
                                                 color: Colors.white,
                                                 fontSize: 14,
@@ -482,7 +514,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(
-                                            '${_durationMinutes.toInt()} Dakika',
+                                            '${_durationMinutes.toInt()} ${AppTranslations.tr('minutes', lang)}',
                                             style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontSize: 12,
@@ -513,7 +545,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                       ),
                                     ),
                                     Text(
-                                      'Ortalama Metin Boyutu: ~${_durationMinutes.toInt() * 130} kelime',
+                                      '${AppTranslations.tr('avg_word_count', lang)}: ~${_durationMinutes.toInt() * 130} ${AppTranslations.tr('words', lang)}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF64748B),
                                         fontSize: 11,
@@ -533,14 +565,14 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                               maxLines: 5,
                               decoration: InputDecoration(
-                                labelText: 'Konuşma Konusu / Detaylar',
+                                labelText: AppTranslations.tr('speech_topic', lang),
                                 labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
                                 alignLabelWithHint: true,
                                 prefixIcon: const Padding(
                                   padding: EdgeInsets.only(bottom: 80.0),
                                   child: Icon(Icons.edit_note_outlined, color: Color(0xFFF43F5E)),
                                 ),
-                                hintText: 'Konuşmada hangi başlıklar yer almalı? Hangi mesajlar verilmeli?',
+                                hintText: AppTranslations.tr('speech_topic_hint', lang),
                                 hintStyle: const TextStyle(color: Color(0xFF475569)),
                                 filled: true,
                                 fillColor: const Color(0xFF1E293B),
@@ -562,7 +594,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                 ),
                               ),
                               validator: (value) =>
-                                  value == null || value.trim().isEmpty ? 'Konuşma detaylarını giriniz' : null,
+                                  value == null || value.trim().isEmpty ? AppTranslations.tr('speech_topic_required', lang) : null,
                             ),
                             const SizedBox(height: 28),
 
@@ -579,7 +611,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                 elevation: 0,
                               ),
                               child: Text(
-                                'Konuşma Metnini Hazırla',
+                                AppTranslations.tr('generate_talk_button', lang),
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
