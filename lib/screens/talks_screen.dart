@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import 'create_talk_dialog.dart';
-import 'create_talk_screen.dart';
 import 'talk_detail_screen.dart';
 
 class TalksScreen extends StatefulWidget {
@@ -96,59 +98,36 @@ class _TalksScreenState extends State<TalksScreen> {
   }
 
   Future<void> _deleteTalk(int id, String topic) async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           side: const BorderSide(color: Color(0xFF334155), width: 1),
         ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.delete_outline, color: Color(0xFFF87171), size: 24),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Konuşmayı Sil',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
+        title: Text(
+          AppTranslations.tr('delete', lang),
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         content: Text(
-          '"$topic" başlıklı konuşmayı ve bağlı tüm sürüm geçmişini silmek istediğinizden emin misiniz?',
-          style: GoogleFonts.inter(
-            color: const Color(0xFFCBD5E1),
-            fontSize: 14,
-            height: 1.4,
-          ),
+          AppTranslations.tr('confirm_delete', lang),
+          style: GoogleFonts.inter(color: const Color(0xFFCBD5E1)),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Vazgeç',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF94A3B8),
-                fontWeight: FontWeight.w600,
-              ),
+              AppTranslations.tr('cancel', lang),
+              style: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
             ),
           ),
           ElevatedButton.icon(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            icon: const Icon(Icons.delete_forever, size: 18),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline, size: 18),
             label: Text(
-              'Sil',
+              AppTranslations.tr('delete', lang),
               style: GoogleFonts.inter(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
@@ -173,7 +152,7 @@ class _TalksScreenState extends State<TalksScreen> {
                   const Icon(Icons.check_circle_outline, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
-                    'Konuşma başarıyla silindi',
+                    AppTranslations.tr('success', lang),
                     style: GoogleFonts.inter(fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -189,7 +168,7 @@ class _TalksScreenState extends State<TalksScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Silme işlemi başarısız: $e'),
+              content: Text('${AppTranslations.tr('error', lang)}: $e'),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
             ),
@@ -202,31 +181,34 @@ class _TalksScreenState extends State<TalksScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'completed':
-        return const Color(0xFF10B981); // Emerald Green
+        return const Color(0xFF10B981);
       case 'processing':
-        return const Color(0xFF3B82F6); // Blue
+        return const Color(0xFF3B82F6);
       case 'failed':
-        return const Color(0xFFEF4444); // Red
+        return const Color(0xFFEF4444);
       default:
-        return const Color(0xFFF59E0B); // Amber/Orange for pending
+        return const Color(0xFFF59E0B);
     }
   }
 
-  String _getStatusText(String status) {
+  String _getStatusText(String status, String lang) {
     switch (status) {
       case 'completed':
-        return 'Tamamlandı';
+        return AppTranslations.tr('status_completed', lang);
       case 'processing':
-        return 'Hazırlanıyor';
+        return AppTranslations.tr('status_generating', lang);
       case 'failed':
-        return 'Başarısız';
+        return AppTranslations.tr('status_failed', lang);
       default:
-        return 'Sırada Bekliyor';
+        return AppTranslations.tr('status_pending', lang);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final lang = authProvider.language;
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -253,7 +235,7 @@ class _TalksScreenState extends State<TalksScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Konuşma Hazırlıklarım',
+                AppTranslations.tr('my_talks', lang),
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -266,7 +248,7 @@ class _TalksScreenState extends State<TalksScreen> {
             IconButton(
               onPressed: _fetchTalks,
               icon: const Icon(Icons.refresh_rounded, color: Color(0xFFCBD5E1)),
-              tooltip: 'Yenile',
+              tooltip: AppTranslations.tr('refresh', lang),
             ),
             const SizedBox(width: 8),
           ],
@@ -293,7 +275,7 @@ class _TalksScreenState extends State<TalksScreen> {
                           ElevatedButton.icon(
                             onPressed: _fetchTalks,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Tekrar Dene'),
+                            label: Text(AppTranslations.tr('refresh', lang)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF6366F1),
                               foregroundColor: Colors.white,
@@ -325,7 +307,7 @@ class _TalksScreenState extends State<TalksScreen> {
                             ),
                             const SizedBox(height: 20),
                             Text(
-                              'Henüz bir konuşma hazırlığı bulunmuyor.',
+                              AppTranslations.tr('no_talks', lang),
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFE2E8F0),
                                 fontSize: 16,
@@ -334,7 +316,7 @@ class _TalksScreenState extends State<TalksScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Yeni bir yapay zeka konuşma metni oluşturmak için başlayın.',
+                              AppTranslations.tr('talks_subtitle', lang),
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF94A3B8),
                                 fontSize: 13,
@@ -344,7 +326,7 @@ class _TalksScreenState extends State<TalksScreen> {
                             ElevatedButton.icon(
                               onPressed: _openCreateTalkDialog,
                               icon: const Icon(Icons.add_rounded),
-                              label: const Text('Yeni Konuşma Başlat'),
+                              label: Text(AppTranslations.tr('new_talk', lang)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF6366F1),
                                 foregroundColor: Colors.white,
@@ -401,10 +383,8 @@ class _TalksScreenState extends State<TalksScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Top Header: Type Tag, Status Chip, Delete Button
                                       Row(
                                         children: [
-                                          // Speech Type Tag
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                                             decoration: BoxDecoration(
@@ -413,7 +393,7 @@ class _TalksScreenState extends State<TalksScreen> {
                                               border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
                                             ),
                                             child: Text(
-                                              talk['speech_type'] ?? 'Genel Konuşma',
+                                              AppTranslations.translateSpeechType(talk['speech_type'], lang),
                                               style: GoogleFonts.inter(
                                                 color: const Color(0xFFA5B4FC),
                                                 fontSize: 11,
@@ -422,7 +402,6 @@ class _TalksScreenState extends State<TalksScreen> {
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // Status Chip
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                             decoration: BoxDecoration(
@@ -439,17 +418,11 @@ class _TalksScreenState extends State<TalksScreen> {
                                                   decoration: BoxDecoration(
                                                     color: statusColor,
                                                     shape: BoxShape.circle,
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: statusColor.withOpacity(0.5),
-                                                        blurRadius: 4,
-                                                      ),
-                                                    ],
                                                   ),
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  _getStatusText(status),
+                                                  _getStatusText(status, lang),
                                                   style: GoogleFonts.inter(
                                                     color: statusColor,
                                                     fontSize: 11,
@@ -460,14 +433,11 @@ class _TalksScreenState extends State<TalksScreen> {
                                             ),
                                           ),
                                           const Spacer(),
-                                          // Delete Action Button
                                           Material(
                                             color: Colors.transparent,
                                             child: InkWell(
                                               onTap: () => _deleteTalk(id, topic),
                                               borderRadius: BorderRadius.circular(10),
-                                              hoverColor: Colors.red.withOpacity(0.15),
-                                              splashColor: Colors.red.withOpacity(0.2),
                                               child: Container(
                                                 padding: const EdgeInsets.all(6),
                                                 decoration: BoxDecoration(
@@ -485,7 +455,6 @@ class _TalksScreenState extends State<TalksScreen> {
                                         ],
                                       ),
                                       const SizedBox(height: 14),
-                                      // Topic Title
                                       Text(
                                         topic,
                                         maxLines: 2,
@@ -500,7 +469,6 @@ class _TalksScreenState extends State<TalksScreen> {
                                       const SizedBox(height: 16),
                                       const Divider(color: Color(0xFF334155), height: 1, thickness: 0.8),
                                       const SizedBox(height: 12),
-                                      // Details Row (Place, Duration, Language)
                                       Row(
                                         children: [
                                           const Icon(Icons.location_on_outlined, size: 15, color: Color(0xFFF59E0B)),
@@ -520,7 +488,7 @@ class _TalksScreenState extends State<TalksScreen> {
                                           const Icon(Icons.timer_outlined, size: 15, color: Color(0xFF38BDF8)),
                                           const SizedBox(width: 4),
                                           Text(
-                                            '${talk['duration'] ?? 0} dk',
+                                            '${talk['duration'] ?? 0} ${AppTranslations.tr("minutes", lang)}',
                                             style: GoogleFonts.inter(
                                               color: const Color(0xFFCBD5E1),
                                               fontSize: 12,
@@ -531,7 +499,7 @@ class _TalksScreenState extends State<TalksScreen> {
                                           const Icon(Icons.language_outlined, size: 15, color: Color(0xFF34D399)),
                                           const SizedBox(width: 4),
                                           Text(
-                                            talk['language'] ?? 'Türkçe',
+                                            AppTranslations.translateLanguageName(talk['language'], lang),
                                             style: GoogleFonts.inter(
                                               color: const Color(0xFFCBD5E1),
                                               fontSize: 12,
@@ -555,7 +523,7 @@ class _TalksScreenState extends State<TalksScreen> {
           elevation: 6,
           icon: const Icon(Icons.add_rounded),
           label: Text(
-            'Yeni Konuşma',
+            AppTranslations.tr('new_talk', lang),
             style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
           ),
         ),

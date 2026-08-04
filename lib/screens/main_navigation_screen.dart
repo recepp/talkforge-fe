@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import 'talks_screen.dart';
 import 'profile_screen.dart';
 
@@ -20,6 +23,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final lang = authProvider.language;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       body: IndexedStack(
@@ -45,16 +51,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12),
           type: BottomNavigationBarType.fixed,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.forum_outlined),
-              activeIcon: Icon(Icons.forum),
-              label: 'Konuşmalarım',
+              icon: const Icon(Icons.forum_outlined),
+              activeIcon: const Icon(Icons.forum),
+              label: AppTranslations.tr('my_talks', lang),
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.account_circle_outlined),
-              activeIcon: Icon(Icons.account_circle),
-              label: 'Profilim',
+              icon: const Icon(Icons.account_circle_outlined),
+              activeIcon: const Icon(Icons.account_circle),
+              label: AppTranslations.tr('my_profile', lang),
             ),
           ],
         ),
