@@ -112,24 +112,34 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     try {
       final talks = await ApiService.getTalkRequests();
       Map<String, dynamic>? freshRoot;
+      final currentSubtreeIds = _flattenTree(_talkTree, 0).map((n) => n.node['id'] as int).toSet();
+
       for (final t in talks) {
-        if (t != null && t['id'] == _talkTree['id']) {
-          freshRoot = t as Map<String, dynamic>;
-          break;
+        if (t != null) {
+          final tMap = t as Map<String, dynamic>;
+          final tNodeIds = _flattenTree(tMap, 0).map((n) => n.node['id'] as int).toSet();
+          if (tNodeIds.intersection(currentSubtreeIds).isNotEmpty) {
+            freshRoot = tMap;
+            break;
+          }
         }
       }
 
-      if (freshRoot != null && mounted) {
-        final currentSelectedId = _selectedNode?['id'] as int?;
-        setState(() {
-          _talkTree = freshRoot!;
-          if (currentSelectedId != null) {
-            _selectedNode = _findNodeInTree(freshRoot, currentSelectedId) ?? _getLatestNode(freshRoot);
-          } else {
-            _selectedNode = _getLatestNode(freshRoot);
-          }
-        });
-        _checkAndManagePolling();
+      if (mounted) {
+        if (freshRoot != null) {
+          final currentSelectedId = _selectedNode?['id'] as int?;
+          setState(() {
+            _talkTree = freshRoot!;
+            if (currentSelectedId != null) {
+              _selectedNode = _findNodeInTree(freshRoot, currentSelectedId) ?? _getLatestNode(freshRoot);
+            } else {
+              _selectedNode = _getLatestNode(freshRoot);
+            }
+          });
+          _checkAndManagePolling();
+        } else if (!silent) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted && !silent) {
@@ -202,9 +212,28 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  Future<void> _deleteCurrentTalk() async {
+  Future<void> _deleteVersionNode(Map<String, dynamic> node) async {
     final lang = Provider.of<AuthProvider>(context, listen: false).language;
-    final rootId = _talkTree['id'] as int;
+    final flatNodes = _flattenTree(_talkTree, 0);
+
+    if (flatNodes.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppTranslations.tr('cannot_delete_only_version', lang)),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final nodeId = node['id'] as int;
+    final isRoot = node['parent_id'] == null || nodeId == _talkTree['id'];
+
+    final titleText = isRoot
+        ? '${AppTranslations.tr('delete_version', lang)} (Root)'
+        : '${AppTranslations.tr('delete_version', lang)} (#$nodeId)';
+    final contentText = AppTranslations.tr('confirm_delete_version', lang);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -226,7 +255,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             ),
             const SizedBox(width: 12),
             Text(
-              AppTranslations.tr('delete', lang),
+              titleText,
               style: GoogleFonts.inter(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -236,7 +265,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ],
         ),
         content: Text(
-          AppTranslations.tr('confirm_delete', lang),
+          contentText,
           style: GoogleFonts.inter(
             color: const Color(0xFFCBD5E1),
             fontSize: 14,
@@ -274,10 +303,19 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     if (confirmed == true) {
       try {
-        await ApiService.deleteTalkRequest(rootId);
-        if (mounted) {
-          Navigator.pop(context, true);
+        await ApiService.deleteTalkRequest(nodeId);
+        if (!mounted) return;
+
+        final selectedId = _selectedNode?['id'] as int?;
+        if (selectedId == nodeId) {
+          final parentId = node['parent_id'] as int?;
+          if (parentId != null) {
+            _selectedNode = _findNodeInTree(_talkTree, parentId);
+          } else {
+            _selectedNode = null;
+          }
         }
+        await _reloadData();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -290,6 +328,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         }
       }
     }
+  }
+
+  Future<void> _deleteCurrentTalk() async {
+    await _deleteVersionNode(_talkTree);
   }
 
   Color _getStatusColor(String status) {
@@ -385,11 +427,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               tooltip: AppTranslations.tr('refresh', lang),
               icon: const Icon(Icons.refresh, color: Colors.white),
             ),
-          IconButton(
-            onPressed: _deleteCurrentTalk,
-            tooltip: AppTranslations.tr('delete', lang),
-            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFF87171)),
-          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -645,7 +682,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             children: [
                               Text(
                                 isRoot
-                                    ? '${AppTranslations.tr("version", lang)} #1 (Root)'
+                                    ? (node['id'] == 1
+                                        ? '${AppTranslations.tr("version", lang)} #1 (Root)'
+                                        : '${AppTranslations.tr("version", lang)} (#${node['id']}) (Root)')
                                     : '${AppTranslations.tr("version", lang)} (#${node['id']})',
                                 style: GoogleFonts.inter(
                                   color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
@@ -681,6 +720,24 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                            if (flatNodes.length > 1) ...[
+                              const SizedBox(height: 6),
+                              Tooltip(
+                                message: AppTranslations.tr('delete_version', lang),
+                                child: InkWell(
+                                  onTap: () => _deleteVersionNode(node),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 16,
+                                      color: isSelected ? const Color(0xFFFCA5A5) : const Color(0xFFF87171).withOpacity(0.7),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],

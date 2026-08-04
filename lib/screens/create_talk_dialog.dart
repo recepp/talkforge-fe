@@ -245,197 +245,26 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               const SizedBox(height: 20),
                             ],
 
-                            // 1. Speech Type Dropdown
-                            DropdownButtonFormField<String>(
-                              value: _selectedSpeechType,
-                              borderRadius: BorderRadius.circular(16),
-                              dropdownColor: const Color(0xFF1E293B),
-                              menuMaxHeight: 340,
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF818CF8)),
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.tr('speech_purpose', lang),
-                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                                prefixIcon: const Icon(Icons.campaign_outlined, color: Color(0xFF818CF8)),
-                                filled: true,
-                                fillColor: const Color(0xFF1E293B),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF334155)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-                                ),
-                              ),
-                              selectedItemBuilder: (context) {
-                                return _speechTypeItems.map((item) {
-                                  final title = AppTranslations.tr(item['code']!, lang);
-                                  final symbol = item['symbol']!;
+                            // 1 & 2. Speech Type & Language Dropdowns (Side-by-side for compact, narrow popup width)
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                if (constraints.maxWidth > 450) {
                                   return Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(symbol, style: const TextStyle(fontSize: 16)),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          title,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-                                        ),
-                                      ),
+                                      Expanded(child: _buildSpeechTypeDropdown(lang)),
+                                      const SizedBox(width: 16),
+                                      Expanded(child: _buildLanguageDropdown(lang)),
                                     ],
                                   );
-                                }).toList();
-                              },
-                              items: _speechTypeItems.map((item) {
-                                final title = AppTranslations.tr(item['code']!, lang);
-                                final symbol = item['symbol']!;
-                                final isSel = _selectedSpeechType == item['title'];
-
-                                return DropdownMenuItem<String>(
-                                  value: item['title'],
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: isSel
-                                                ? const Color(0xFF6366F1).withOpacity(0.25)
-                                                : const Color(0xFF0F172A).withOpacity(0.5),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: isSel ? const Color(0xFF818CF8) : const Color(0xFF334155).withOpacity(0.6),
-                                            ),
-                                          ),
-                                          child: Text(symbol, style: const TextStyle(fontSize: 15)),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            title,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.inter(
-                                              color: isSel ? Colors.white : const Color(0xFFCBD5E1),
-                                              fontSize: 13,
-                                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isSel)
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            color: Color(0xFF818CF8),
-                                            size: 18,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedSpeechType = val;
-                                  });
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 20),
-
-                            // 2. Language Dropdown
-                            DropdownButtonFormField<String>(
-                              value: _selectedLanguage,
-                              borderRadius: BorderRadius.circular(16),
-                              dropdownColor: const Color(0xFF1E293B),
-                              menuMaxHeight: 340,
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF34D399)),
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.tr('speech_lang', lang),
-                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                                prefixIcon: const Icon(Icons.language_outlined, color: Color(0xFF34D399)),
-                                filled: true,
-                                fillColor: const Color(0xFF1E293B),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF334155)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-                                ),
-                              ),
-                              selectedItemBuilder: (context) {
-                                return _languageItems.map((item) {
-                                  final code = item['code']!;
-                                  final symbol = item['symbol']!;
-                                  final translatedLang = AppTranslations.translateLanguageName(code, lang);
-                                  return Row(
+                                } else {
+                                  return Column(
                                     children: [
-                                      Text(symbol, style: const TextStyle(fontSize: 16)),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        translatedLang,
-                                        style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
-                                      ),
+                                      _buildSpeechTypeDropdown(lang),
+                                      const SizedBox(height: 16),
+                                      _buildLanguageDropdown(lang),
                                     ],
                                   );
-                                }).toList();
-                              },
-                              items: _languageItems.map((item) {
-                                final code = item['code']!;
-                                final symbol = item['symbol']!;
-                                final translatedLang = AppTranslations.translateLanguageName(code, lang);
-                                final isSel = _selectedLanguage == code;
-
-                                return DropdownMenuItem<String>(
-                                  value: code,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: isSel
-                                                ? const Color(0xFF059669).withOpacity(0.25)
-                                                : const Color(0xFF0F172A).withOpacity(0.5),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: isSel ? const Color(0xFF34D399) : const Color(0xFF334155).withOpacity(0.6),
-                                            ),
-                                          ),
-                                          child: Text(symbol, style: const TextStyle(fontSize: 15)),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            translatedLang,
-                                            style: GoogleFonts.inter(
-                                              color: isSel ? Colors.white : const Color(0xFFCBD5E1),
-                                              fontSize: 13,
-                                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isSel)
-                                          const Icon(
-                                            Icons.check_circle_rounded,
-                                            color: Color(0xFF34D399),
-                                            size: 18,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedLanguage = val;
-                                  });
                                 }
                               },
                             ),
@@ -626,6 +455,204 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSpeechTypeDropdown(String lang) {
+    return DropdownButtonFormField<String>(
+      value: _selectedSpeechType,
+      isExpanded: true,
+      borderRadius: BorderRadius.circular(14),
+      dropdownColor: const Color(0xFF1E293B),
+      menuMaxHeight: 480,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF818CF8)),
+      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: AppTranslations.tr('speech_purpose', lang),
+        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        prefixIcon: const Icon(Icons.campaign_outlined, color: Color(0xFF818CF8), size: 20),
+        filled: true,
+        fillColor: const Color(0xFF1E293B),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+        ),
+      ),
+      selectedItemBuilder: (context) {
+        return _speechTypeItems.map((item) {
+          final title = AppTranslations.tr(item['code']!, lang);
+          final symbol = item['symbol']!;
+          return Row(
+            children: [
+              Text(symbol, style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          );
+        }).toList();
+      },
+      items: _speechTypeItems.map((item) {
+        final title = AppTranslations.tr(item['code']!, lang);
+        final symbol = item['symbol']!;
+        final isSel = _selectedSpeechType == item['title'];
+
+        return DropdownMenuItem<String>(
+          value: item['title'],
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: isSel
+                      ? const Color(0xFF6366F1).withOpacity(0.25)
+                      : const Color(0xFF0F172A).withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSel ? const Color(0xFF818CF8) : const Color(0xFF334155).withOpacity(0.6),
+                  ),
+                ),
+                child: Text(symbol, style: const TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: isSel ? Colors.white : const Color(0xFFCBD5E1),
+                    fontSize: 13,
+                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (isSel)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF818CF8),
+                  size: 16,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val != null) {
+          setState(() {
+            _selectedSpeechType = val;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildLanguageDropdown(String lang) {
+    return DropdownButtonFormField<String>(
+      value: _selectedLanguage,
+      isExpanded: true,
+      borderRadius: BorderRadius.circular(14),
+      dropdownColor: const Color(0xFF1E293B),
+      menuMaxHeight: 480,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF34D399)),
+      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: AppTranslations.tr('speech_lang', lang),
+        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        prefixIcon: const Icon(Icons.language_outlined, color: Color(0xFF34D399), size: 20),
+        filled: true,
+        fillColor: const Color(0xFF1E293B),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
+        ),
+      ),
+      selectedItemBuilder: (context) {
+        return _languageItems.map((item) {
+          final code = item['code']!;
+          final symbol = item['symbol']!;
+          final translatedLang = AppTranslations.translateLanguageName(code, lang);
+          return Row(
+            children: [
+              Text(symbol, style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  translatedLang,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          );
+        }).toList();
+      },
+      items: _languageItems.map((item) {
+        final code = item['code']!;
+        final symbol = item['symbol']!;
+        final translatedLang = AppTranslations.translateLanguageName(code, lang);
+        final isSel = _selectedLanguage == code;
+
+        return DropdownMenuItem<String>(
+          value: code,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: isSel
+                      ? const Color(0xFF059669).withOpacity(0.25)
+                      : const Color(0xFF0F172A).withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSel ? const Color(0xFF34D399) : const Color(0xFF334155).withOpacity(0.6),
+                  ),
+                ),
+                child: Text(symbol, style: const TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  translatedLang,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: isSel ? Colors.white : const Color(0xFFCBD5E1),
+                    fontSize: 13,
+                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (isSel)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF34D399),
+                  size: 16,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val != null) {
+          setState(() {
+            _selectedLanguage = val;
+          });
+        }
+      },
     );
   }
 }
