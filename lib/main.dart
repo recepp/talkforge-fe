@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
+import 'services/api_service.dart';
 
 import 'constants.dart';
 
@@ -25,6 +26,7 @@ class TalkForgeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: ApiService.navigatorKey,
       title: 'TalkForge AI',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(

@@ -143,6 +143,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       }
     } catch (e) {
       if (mounted && !silent) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
         setState(() {
           _errorMessage = 'Error: $e';
         });
@@ -202,9 +204,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       });
       await _reloadData();
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -318,6 +324,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         await _reloadData();
       } catch (e) {
         if (mounted) {
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          if (!authProvider.isAuthenticated) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${AppTranslations.tr('error', lang)}: $e'),

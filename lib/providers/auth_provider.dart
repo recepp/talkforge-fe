@@ -18,20 +18,31 @@ class AuthProvider extends ChangeNotifier {
   String get language => _language ?? 'tr';
 
   AuthProvider() {
+    ApiService.onUnauthorized = _handleUnauthorized;
     checkAuthStatus();
+  }
+
+  Future<void> _handleUnauthorized() async {
+    _isAuthenticated = false;
+    _email = null;
+    _nickname = null;
+    _role = null;
+    _language = null;
+    notifyListeners();
   }
 
   // Restore session from local storage on app start
   Future<void> checkAuthStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    if (token != null && token.isNotEmpty) {
+    if (token != null && token.trim().isNotEmpty && ApiService.isValidToken(token)) {
       _isAuthenticated = true;
       _email = prefs.getString('user_email');
       _nickname = prefs.getString('user_nickname');
       _role = prefs.getString('user_role');
       _language = prefs.getString('user_language') ?? 'tr';
     } else {
+      await prefs.clear();
       _isAuthenticated = false;
     }
     _isLoading = false;
@@ -92,12 +103,7 @@ class AuthProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await prefs.remove('user_email');
-    await prefs.remove('user_nickname');
-    await prefs.remove('user_role');
-    await prefs.remove('user_language');
-    await prefs.remove('user_id');
+    await prefs.clear();
 
     _isAuthenticated = false;
     _email = null;

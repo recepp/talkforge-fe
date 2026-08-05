@@ -1,21 +1,116 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
+import '../screens/login_screen.dart';
 
 class ApiService {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static Future<void> Function()? onUnauthorized;
+  static bool _isHandling401 = false;
+
+  static bool isValidToken(String token) {
+    for (int i = 0; i < token.length; i++) {
+      if (token.codeUnitAt(i) > 127) return false;
+    }
+    return true;
+  }
+
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    if (token == null || token.trim().isEmpty || !isValidToken(token)) {
+      await handle401();
+      throw Exception('Oturum sonlandı.');
+    }
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer ${token.trim()}',
     };
   }
 
+  static bool _isAuthError(dynamic e) {
+    final err = e.toString().toLowerCase();
+    return err.contains('iso-8859-1') ||
+           err.contains('headers') ||
+           err.contains('fetch') ||
+           err.contains('unauthorized') ||
+           err.contains('bearer');
+  }
+
+  static Future<http.Response> _safeGet(Uri url) async {
+    final headers = await _getHeaders();
+    try {
+      return await http.get(url, headers: headers);
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await handle401();
+      }
+      rethrow;
+    }
+  }
+
+  static Future<http.Response> _safePost(Uri url, {Object? body}) async {
+    final headers = await _getHeaders();
+    try {
+      return await http.post(url, headers: headers, body: body);
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await handle401();
+      }
+      rethrow;
+    }
+  }
+
+  static Future<http.Response> _safePut(Uri url, {Object? body}) async {
+    final headers = await _getHeaders();
+    try {
+      return await http.put(url, headers: headers, body: body);
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await handle401();
+      }
+      rethrow;
+    }
+  }
+
+  static Future<http.Response> _safeDelete(Uri url) async {
+    final headers = await _getHeaders();
+    try {
+      return await http.delete(url, headers: headers);
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await handle401();
+      }
+      rethrow;
+    }
+  }
+
+  // Handle 401 Unauthorized globally: clear session data and reset navigator stack
+  static Future<void> handle401() async {
+    if (_isHandling401) return;
+    _isHandling401 = true;
+    try {
+      if (onUnauthorized != null) {
+        await onUnauthorized!();
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } finally {
+      _isHandling401 = false;
+    }
+  }
+
   // Parses response and throws exceptions on API errors
-  static dynamic _parseResponse(http.Response response) {
+  static Future<dynamic> _parseResponse(http.Response response, {String? endpoint}) async {
     final body = response.body;
     final statusCode = response.statusCode;
 
@@ -28,6 +123,13 @@ class ApiService {
 
     if (statusCode >= 200 && statusCode < 300) {
       return decoded;
+    } else if (statusCode == 401 && endpoint != '/auth/login' && endpoint != '/auth/signup') {
+      await handle401();
+      String errorMessage = 'Oturum süresi doldu. Lütfen tekrar giriş yapın.';
+      if (decoded is Map && decoded.containsKey('error')) {
+        errorMessage = decoded['error'].toString();
+      }
+      throw Exception(errorMessage);
     } else {
       String errorMessage = 'İşlem başarısız oldu';
       if (decoded is Map && decoded.containsKey('error')) {
@@ -44,7 +146,7 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
-    final data = _parseResponse(response) as Map<String, dynamic>;
+    final data = await _parseResponse(response, endpoint: '/auth/login') as Map<String, dynamic>;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', data['token'] ?? '');
@@ -69,7 +171,7 @@ class ApiService {
         'avatar': '👤',
       }),
     );
-    final data = _parseResponse(response) as Map<String, dynamic>;
+    final data = await _parseResponse(response, endpoint: '/auth/signup') as Map<String, dynamic>;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', data['token'] ?? '');
@@ -84,13 +186,11 @@ class ApiService {
 
   // Update User Language Preference
   static Future<Map<String, dynamic>> updateLanguage(String language) async {
-    final headers = await _getHeaders();
-    final response = await http.put(
+    final response = await _safePut(
       Uri.parse('${Constants.baseUrl}/user/language'),
-      headers: headers,
       body: jsonEncode({'language': language}),
     );
-    final data = _parseResponse(response) as Map<String, dynamic>;
+    final data = await _parseResponse(response, endpoint: '/user/language') as Map<String, dynamic>;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_language', language);
     return data;
@@ -98,11 +198,8 @@ class ApiService {
 
   // Fetch Dialogue Tree List
   static Future<List<dynamic>> getTalkRequests() async {
-    final response = await http.get(
-      Uri.parse('${Constants.baseUrl}/talks'),
-      headers: await _getHeaders(),
-    );
-    final data = _parseResponse(response);
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/talks'));
+    final data = await _parseResponse(response, endpoint: '/talks');
     if (data is List) {
       return data;
     }
@@ -120,7 +217,6 @@ class ApiService {
     String? instruction,
     int? parentId,
   }) async {
-    final headers = await _getHeaders();
     final body = {
       'mode': mode,
       if (mode == 'new') 'language': language,
@@ -132,21 +228,16 @@ class ApiService {
       if (mode == 'update') 'parent_id': parentId,
     };
 
-    final response = await http.post(
+    final response = await _safePost(
       Uri.parse('${Constants.baseUrl}/talks'),
-      headers: headers,
       body: jsonEncode(body),
     );
-    return _parseResponse(response) as Map<String, dynamic>;
+    return await _parseResponse(response, endpoint: '/talks') as Map<String, dynamic>;
   }
 
   // Delete Dialogue Request
   static Future<void> deleteTalkRequest(int id) async {
-    final headers = await _getHeaders();
-    final response = await http.delete(
-      Uri.parse('${Constants.baseUrl}/talks/$id'),
-      headers: headers,
-    );
-    _parseResponse(response);
+    final response = await _safeDelete(Uri.parse('${Constants.baseUrl}/talks/$id'));
+    await _parseResponse(response, endpoint: '/talks/$id');
   }
 }
