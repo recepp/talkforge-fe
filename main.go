@@ -62,12 +62,9 @@ func main() {
 		// Check if file exists and is not a directory
 		info, err := os.Stat(fullPath)
 		if err == nil && !info.IsDir() {
-			filename := filepath.Base(fullPath)
-			if filename == "index.html" || filename == "flutter_service_worker.js" {
-				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-				w.Header().Set("Pragma", "no-cache")
-				w.Header().Set("Expires", "0")
-			}
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
 			http.ServeFile(w, r, fullPath)
 			return
 		}
