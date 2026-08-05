@@ -72,7 +72,20 @@ class _TalksScreenState extends State<TalksScreen> {
         _checkAndManagePolling();
       }
     } catch (e) {
+      final err = e.toString().toLowerCase();
+      if (err.contains('401') ||
+          err.contains('unauthorized') ||
+          err.contains('oturum') ||
+          err.contains('token') ||
+          err.contains('headers') ||
+          err.contains('iso-8859-1')) {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+        return;
+      }
       if (mounted && !silent) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
         setState(() {
           _error = e.toString().replaceAll('Exception: ', '');
           _isLoading = false;
