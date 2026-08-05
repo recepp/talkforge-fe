@@ -326,12 +326,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         await _reloadData();
       } catch (e) {
         if (mounted) {
-<<<<<<< HEAD
           final authProvider = Provider.of<AuthProvider>(context, listen: false);
           if (!authProvider.isAuthenticated) return;
-=======
           ScaffoldMessenger.of(context).clearSnackBars();
->>>>>>> 22be27876936c8ecadab9f7227724b527a893061
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               duration: const Duration(milliseconds: 2500),

@@ -6,7 +6,6 @@ import '../constants.dart';
 import '../screens/login_screen.dart';
 
 class ApiService {
-<<<<<<< HEAD
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static Future<void> Function()? onUnauthorized;
   static bool _isHandling401 = false;
@@ -18,18 +17,6 @@ class ApiService {
     return true;
   }
 
-  static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null || token.trim().isEmpty || !isValidToken(token)) {
-      await handle401();
-      throw Exception('Oturum sonlandı.');
-    }
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': 'Bearer ${token.trim()}',
-=======
   static Future<Map<String, String>> _getHeaders([String? langCode]) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -40,8 +27,8 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Accept-Language': preferredLang,
-      if (token != null) 'Authorization': 'Bearer $token',
->>>>>>> 22be27876936c8ecadab9f7227724b527a893061
+      if (token != null && token.trim().isNotEmpty && isValidToken(token))
+        'Authorization': 'Bearer ${token.trim()}',
     };
   }
 
@@ -160,7 +147,7 @@ class ApiService {
       Uri.parse('${Constants.baseUrl}/talk-types'),
       headers: headers,
     );
-    final data = _parseResponse(response);
+    final data = await _parseResponse(response);
     if (data is List) {
       return data;
     }
@@ -214,12 +201,7 @@ class ApiService {
 
   // Update User Language Preference
   static Future<Map<String, dynamic>> updateLanguage(String language) async {
-<<<<<<< HEAD
     final response = await _safePut(
-=======
-    final headers = await _getHeaders(language);
-    final response = await http.put(
->>>>>>> 22be27876936c8ecadab9f7227724b527a893061
       Uri.parse('${Constants.baseUrl}/user/language'),
       body: jsonEncode({'language': language}),
     );
