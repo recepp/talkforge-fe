@@ -17,14 +17,9 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
   final _formKey = GlobalKey<FormState>();
   bool _initializedLang = false;
 
-  final List<Map<String, String>> _speechTypeItems = [
-    {'code': 'speech_type_politician', 'title': 'Siyasetçi Konuşması', 'symbol': '🏛️'},
-    {'code': 'speech_type_imam', 'title': 'İmam Vaazı / Hutbe', 'symbol': '🕌'},
-    {'code': 'speech_type_teacher_welcome', 'title': 'Öğretmen Sınıfa Tanışma Konuşması', 'symbol': '🎓'},
-    {'code': 'speech_type_teacher_farewell', 'title': 'Öğretmen Sınıfa Veda Konuşması', 'symbol': '👋'},
-    {'code': 'speech_type_business', 'title': 'Genel İş Sunumu / Hitabet', 'symbol': '💼'},
-    {'code': 'speech_type_wedding', 'title': 'Düğün / Kutlama Konuşması', 'symbol': '🥂'},
-  ];
+  List<Map<String, dynamic>> _talkTypeItems = [];
+  Map<String, dynamic>? _selectedTalkType;
+  bool _loadingTalkTypes = true;
 
   final List<Map<String, String>> _languageItems = [
     {'code': 'Türkçe', 'symbol': '🇹🇷'},
@@ -37,15 +32,18 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
   ];
 
   String _selectedLanguage = 'Türkçe';
-  String _selectedSpeechType = 'Siyasetçi Konuşması';
 
   final _placeKey = GlobalKey();
   final _topicKey = GlobalKey();
+  final _customSpeechTypeKey = GlobalKey();
+
   final _placeFocusNode = FocusNode();
   final _topicFocusNode = FocusNode();
+  final _customSpeechTypeFocusNode = FocusNode();
 
   final _placeController = TextEditingController();
   final _topicController = TextEditingController();
+  final _customSpeechTypeController = TextEditingController();
   double _durationMinutes = 5.0;
 
   bool _isLoading = false;
@@ -69,7 +67,34 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
     if (!_initializedLang) {
       final userLangCode = Provider.of<AuthProvider>(context, listen: false).language;
       _selectedLanguage = _getLangNameFromCode(userLangCode);
+      _fetchTalkTypes(userLangCode);
       _initializedLang = true;
+    }
+  }
+
+  Future<void> _fetchTalkTypes(String langCode) async {
+    setState(() {
+      _loadingTalkTypes = true;
+    });
+
+    try {
+      final result = await ApiService.getTalkTypes(langCode: langCode);
+      if (mounted) {
+        setState(() {
+          _talkTypeItems = List<Map<String, dynamic>>.from(result);
+          if (_talkTypeItems.isNotEmpty) {
+            _selectedTalkType = _talkTypeItems.first;
+          }
+          _loadingTalkTypes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingTalkTypes = false;
+          _errorMessage = 'Failed to load talk types: $e';
+        });
+      }
     }
   }
 
@@ -77,15 +102,31 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
   void dispose() {
     _placeController.dispose();
     _topicController.dispose();
+    _customSpeechTypeController.dispose();
     _placeFocusNode.dispose();
     _topicFocusNode.dispose();
+    _customSpeechTypeFocusNode.dispose();
     super.dispose();
+  }
+
+  bool get _isCustomSelected {
+    if (_selectedTalkType == null) return false;
+    return _selectedTalkType!['is_custom'] == true || _selectedTalkType!['key'] == 'other';
   }
 
   Future<void> _submit() async {
     final isValid = _formKey.currentState!.validate();
     if (!isValid) {
-      if (_placeController.text.trim().isEmpty) {
+      if (_isCustomSelected && _customSpeechTypeController.text.trim().isEmpty) {
+        if (_customSpeechTypeKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _customSpeechTypeKey.currentContext!,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+          );
+        }
+        _customSpeechTypeFocusNode.requestFocus();
+      } else if (_placeController.text.trim().isEmpty) {
         if (_placeKey.currentContext != null) {
           Scrollable.ensureVisible(
             _placeKey.currentContext!,
@@ -113,14 +154,21 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
     });
 
     try {
+      final speechTypeKey = _selectedTalkType?['key'] ?? 'other';
+      final customPromptText = _isCustomSelected
+          ? _customSpeechTypeController.text.trim()
+          : null;
+
       final newRequest = await ApiService.createTalkRequest(
         mode: 'new',
         language: _selectedLanguage,
         place: _placeController.text.trim(),
         topic: _topicController.text.trim(),
-        speechType: _selectedSpeechType,
+        speechType: speechTypeKey,
+        customSpeechType: customPromptText,
         duration: _durationMinutes.toInt(),
       );
+
       if (mounted) {
         Navigator.pop(context); // Close popup dialog
         Navigator.push(
@@ -149,7 +197,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 800),
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 840),
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(22),
@@ -245,7 +293,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               const SizedBox(height: 20),
                             ],
 
-                            // 1 & 2. Speech Type & Language Dropdowns (Side-by-side for compact, narrow popup width)
+                            // 1 & 2. Speech Type & Language Dropdowns
                             LayoutBuilder(
                               builder: (context, constraints) {
                                 if (constraints.maxWidth > 450) {
@@ -269,6 +317,46 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               },
                             ),
                             const SizedBox(height: 20),
+
+                            // Dynamic Custom Speech Purpose Text Field (if "Other" / is_custom is selected)
+                            if (_isCustomSelected) ...[
+                              TextFormField(
+                                key: _customSpeechTypeKey,
+                                focusNode: _customSpeechTypeFocusNode,
+                                controller: _customSpeechTypeController,
+                                style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: AppTranslations.tr('custom_speech_purpose', lang),
+                                  labelStyle: const TextStyle(color: Color(0xFF818CF8)),
+                                  prefixIcon: const Icon(Icons.edit_note_rounded, color: Color(0xFF818CF8)),
+                                  hintText: AppTranslations.tr('custom_speech_purpose_hint', lang),
+                                  hintStyle: const TextStyle(color: Color(0xFF475569)),
+                                  filled: true,
+                                  fillColor: const Color(0xFF1E293B),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.2),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Color(0xFF818CF8), width: 2.0),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Colors.redAccent),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+                                  ),
+                                ),
+                                validator: (value) =>
+                                    _isCustomSelected && (value == null || value.trim().isEmpty)
+                                        ? AppTranslations.tr('custom_speech_purpose_required', lang)
+                                        : null,
+                              ),
+                              const SizedBox(height: 20),
+                            ],
 
                             // 3. Place Text Field
                             TextFormField(
@@ -459,8 +547,25 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
   }
 
   Widget _buildSpeechTypeDropdown(String lang) {
-    return DropdownButtonFormField<String>(
-      value: _selectedSpeechType,
+    if (_loadingTalkTypes) {
+      return Container(
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
+        child: const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(color: Color(0xFF818CF8), strokeWidth: 2.2),
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<Map<String, dynamic>>(
+      value: _selectedTalkType,
       isExpanded: true,
       borderRadius: BorderRadius.circular(14),
       dropdownColor: const Color(0xFF1E293B),
@@ -484,9 +589,9 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
         ),
       ),
       selectedItemBuilder: (context) {
-        return _speechTypeItems.map((item) {
-          final title = AppTranslations.tr(item['code']!, lang);
-          final symbol = item['symbol']!;
+        return _talkTypeItems.map((item) {
+          final title = item['title'] ?? item['key'];
+          final symbol = item['symbol'] ?? '💬';
           return Row(
             children: [
               Text(symbol, style: const TextStyle(fontSize: 15)),
@@ -502,13 +607,13 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
           );
         }).toList();
       },
-      items: _speechTypeItems.map((item) {
-        final title = AppTranslations.tr(item['code']!, lang);
-        final symbol = item['symbol']!;
-        final isSel = _selectedSpeechType == item['title'];
+      items: _talkTypeItems.map((item) {
+        final title = item['title'] ?? item['key'];
+        final symbol = item['symbol'] ?? '💬';
+        final isSel = _selectedTalkType?['key'] == item['key'];
 
-        return DropdownMenuItem<String>(
-          value: item['title'],
+        return DropdownMenuItem<Map<String, dynamic>>(
+          value: item,
           child: Row(
             children: [
               Container(
@@ -549,7 +654,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
       onChanged: (val) {
         if (val != null) {
           setState(() {
-            _selectedSpeechType = val;
+            _selectedTalkType = val;
           });
         }
       },
@@ -650,9 +755,22 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
         if (val != null) {
           setState(() {
             _selectedLanguage = val;
+            _fetchTalkTypes(_getLangCodeFromName(val));
           });
         }
       },
     );
+  }
+
+  static String _getLangCodeFromName(String name) {
+    switch (name) {
+      case 'İngilizce': return 'en';
+      case 'Almanca': return 'de';
+      case 'Fransızca': return 'fr';
+      case 'İspanyolca': return 'es';
+      case 'Arapça': return 'ar';
+      case 'Rusça': return 'ru';
+      default: return 'tr';
+    }
   }
 }
