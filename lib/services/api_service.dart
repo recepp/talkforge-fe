@@ -4,12 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 
 class ApiService {
-  static Future<Map<String, String>> _getHeaders() async {
+  static Future<Map<String, String>> _getHeaders([String? langCode]) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    final userLang = prefs.getString('user_language') ?? 'tr';
+    final preferredLang = langCode ?? userLang;
+
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'Accept-Language': preferredLang,
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -35,6 +39,20 @@ class ApiService {
       }
       throw Exception(errorMessage);
     }
+  }
+
+  // Fetch dynamic multi-language talk types
+  static Future<List<dynamic>> getTalkTypes({String? langCode}) async {
+    final headers = await _getHeaders(langCode);
+    final response = await http.get(
+      Uri.parse('${Constants.baseUrl}/talk-types'),
+      headers: headers,
+    );
+    final data = _parseResponse(response);
+    if (data is List) {
+      return data;
+    }
+    return [];
   }
 
   // Authenticate user with Email and Password
@@ -84,7 +102,7 @@ class ApiService {
 
   // Update User Language Preference
   static Future<Map<String, dynamic>> updateLanguage(String language) async {
-    final headers = await _getHeaders();
+    final headers = await _getHeaders(language);
     final response = await http.put(
       Uri.parse('${Constants.baseUrl}/user/language'),
       headers: headers,
@@ -116,6 +134,7 @@ class ApiService {
     String? place,
     String? topic,
     String? speechType,
+    String? customSpeechType,
     int? duration,
     String? instruction,
     int? parentId,
@@ -127,6 +146,8 @@ class ApiService {
       if (mode == 'new') 'place': place,
       if (mode == 'new') 'topic': topic,
       if (mode == 'new') 'speech_type': speechType,
+      if (mode == 'new' && customSpeechType != null && customSpeechType.isNotEmpty)
+        'custom_speech_type': customSpeechType,
       if (mode == 'new') 'duration': duration,
       if (mode == 'update') 'instruction': instruction,
       if (mode == 'update') 'parent_id': parentId,

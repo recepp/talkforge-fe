@@ -222,8 +222,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final flatNodes = _flattenTree(_talkTree, 0);
 
     if (flatNodes.length <= 1) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+          duration: const Duration(milliseconds: 2000),
           content: Text(AppTranslations.tr('cannot_delete_only_version', lang)),
           backgroundColor: Colors.orangeAccent,
           behavior: SnackBarBehavior.floating,
@@ -324,8 +326,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         await _reloadData();
       } catch (e) {
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
+              duration: const Duration(milliseconds: 2500),
               content: Text('${AppTranslations.tr('error', lang)}: $e'),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
@@ -374,6 +378,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
   void _copyToClipboard(String text, String lang) {
     Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -389,7 +394,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         backgroundColor: const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(milliseconds: 1800),
       ),
     );
   }

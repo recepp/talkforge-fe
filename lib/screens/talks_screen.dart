@@ -145,8 +145,10 @@ class _TalksScreenState extends State<TalksScreen> {
       try {
         await ApiService.deleteTalkRequest(id);
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
+              duration: const Duration(milliseconds: 1800),
               content: Row(
                 children: [
                   const Icon(Icons.check_circle_outline, color: Colors.white),
@@ -166,8 +168,10 @@ class _TalksScreenState extends State<TalksScreen> {
         _fetchTalks();
       } catch (e) {
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
+              duration: const Duration(milliseconds: 2500),
               content: Text('${AppTranslations.tr('error', lang)}: $e'),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
