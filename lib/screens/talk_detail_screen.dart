@@ -181,6 +181,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return list;
   }
 
+  /// Returns the stable version number stored in the backend for this node.
+  int _getVersionNumber(Map<String, dynamic> node) {
+    return (node['version_number'] as num?)?.toInt() ?? 1;
+  }
+
   Future<void> _submitUpdate() async {
     if (_selectedNode == null) return;
     final instruction = _instructionController.text.trim();
@@ -237,10 +242,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     final nodeId = node['id'] as int;
     final isRoot = node['parent_id'] == null || nodeId == _talkTree['id'];
+    final versionNum = _getVersionNumber(node);
 
     final titleText = isRoot
         ? '${AppTranslations.tr('delete_version', lang)} (Root)'
-        : '${AppTranslations.tr('delete_version', lang)} (#$nodeId)';
+        : '${AppTranslations.tr('delete_version', lang)} (#$versionNum)';
     final contentText = AppTranslations.tr('confirm_delete_version', lang);
 
     final confirmed = await showDialog<bool>(
@@ -694,11 +700,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isRoot
-                                    ? (node['id'] == 1
-                                        ? '${AppTranslations.tr("version", lang)} #1 (Root)'
-                                        : '${AppTranslations.tr("version", lang)} (#${node['id']}) (Root)')
-                                    : '${AppTranslations.tr("version", lang)} (#${node['id']})',
+                            isRoot
+                                    ? '${AppTranslations.tr("version", lang)} #${_getVersionNumber(node)} (Root)'
+                                    : '${AppTranslations.tr("version", lang)} #${_getVersionNumber(node)}',
                                 style: GoogleFonts.inter(
                                   color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
                                   fontSize: 13,
@@ -797,7 +801,14 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${AppTranslations.tr("version", lang)} #${_selectedNode!['id']}',
+                          () {
+                            final isRootNode = _selectedNode!['parent_id'] == null;
+                            final vNum = _getVersionNumber(_selectedNode!);
+                            if (isRootNode) {
+                              return '${AppTranslations.tr("version", lang)} #$vNum (Root)';
+                            }
+                            return '${AppTranslations.tr("version", lang)} #$vNum';
+                          }(),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 16,
@@ -881,8 +892,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           TalkDiffView(
             parentText: parentNode['generated_text'] ?? '',
             childText: text,
-            parentId: parentNode['id'],
-            childId: _selectedNode!['id'],
+            parentId: _getVersionNumber(parentNode),
+            childId: _getVersionNumber(_selectedNode!),
           )
         else
           Container(
