@@ -66,6 +66,9 @@ class AppTranslations {
       // Create Talk Dialog
       'create_talk_title': 'Yeni Konuşma Hazırla',
       'speech_purpose': 'Konuşma Amacı / Rolü',
+      'custom_speech_purpose': 'Özel Konuşma Türü / Amacı',
+      'custom_speech_purpose_hint': 'Örn: Şirket İçi Motivasyon Konuşması, Ürün Lansman Hitabeti',
+      'custom_speech_purpose_required': 'Lütfen özel konuşma amacınızı giriniz',
       'speech_lang': 'Konuşma Dili',
       'speech_place': 'Konuşma Yapılacak Yer / Ortam',
       'speech_place_hint': 'Örn: Belediye Konferans Salonu, Merkez Camii, Sınıf 3-A',
@@ -173,6 +176,9 @@ class AppTranslations {
       // Create Talk Dialog
       'create_talk_title': 'Prepare New Conversation',
       'speech_purpose': 'Speech Purpose / Role',
+      'custom_speech_purpose': 'Custom Speech Purpose / Role',
+      'custom_speech_purpose_hint': 'E.g.: Company Motivational Speech, Product Launch Keynote',
+      'custom_speech_purpose_required': 'Please enter your custom speech purpose',
       'speech_lang': 'Speech Language',
       'speech_place': 'Location / Environment',
       'speech_place_hint': 'E.g.: City Hall Conference Room, Main Hall, Classroom 3-A',

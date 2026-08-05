@@ -191,8 +191,10 @@ class ProfileScreen extends StatelessWidget {
                             }
                           } catch (e) {
                             if (context.mounted) {
+                              ScaffoldMessenger.of(context).clearSnackBars();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
+                                  duration: const Duration(milliseconds: 2500),
                                   content: Text('${AppTranslations.tr('error', lang)}: ${e.toString().replaceAll("Exception: ", "")}'),
                                   backgroundColor: Colors.redAccent,
                                   behavior: SnackBarBehavior.floating,
