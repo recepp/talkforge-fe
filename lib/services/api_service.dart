@@ -35,10 +35,8 @@ class ApiService {
   static bool _isAuthError(dynamic e) {
     final err = e.toString().toLowerCase();
     return err.contains('iso-8859-1') ||
-           err.contains('headers') ||
-           err.contains('fetch') ||
            err.contains('unauthorized') ||
-           err.contains('bearer');
+           err.contains('invalid token');
   }
 
   static Future<http.Response> _safeGet(Uri url) async {
@@ -233,6 +231,7 @@ class ApiService {
     String? instruction,
     int? parentId,
     String? selectedText,
+    String? generatedText,
   }) async {
     final body = {
       'mode': mode,
@@ -243,9 +242,14 @@ class ApiService {
       if (mode == 'new' && customSpeechType != null && customSpeechType.isNotEmpty)
         'custom_speech_type': customSpeechType,
       if (mode == 'new') 'duration': duration,
-      if (mode == 'update' || mode == 'partial_update') 'instruction': instruction,
-      if (mode == 'update' || mode == 'partial_update') 'parent_id': parentId,
-      if (mode == 'partial_update' && selectedText != null) 'selected_text': selectedText,
+      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
+        'instruction': instruction,
+      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
+        'parent_id': parentId,
+      if ((mode == 'partial_update' || mode == 'manual_update') && selectedText != null)
+        'selected_text': selectedText,
+      if (mode == 'manual_update' && generatedText != null)
+        'generated_text': generatedText,
     };
 
     final response = await _safePost(
