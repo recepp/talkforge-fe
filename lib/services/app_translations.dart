@@ -109,6 +109,14 @@ class AppTranslations {
       'apply_changes': 'Değişiklikleri Uygula',
       'copy_speech': 'Metni Kopyala',
       'speech_copied': 'Metin panoya kopyalandı',
+
+      // Text Selection Toolbar
+      'edit_selection': 'Seçimi Düzenle',
+      'edit_selection_hint': 'Bu bölümü nasıl değiştireyim? (Örn: "Daha akıcı yap", "Örnek ekle")',
+      'selected_text_preview': 'Seçilen bölüm',
+      'generate_new_version': 'Yeni Versiyon Üret',
+      'close_toolbar': 'Kapat',
+      'selection_too_short': 'Lütfen daha uzun bir metin seçin.',
     },
     'en': {
       'my_talks': 'My Conversations',
@@ -219,6 +227,14 @@ class AppTranslations {
       'apply_changes': 'Apply Changes',
       'copy_speech': 'Copy Text',
       'speech_copied': 'Text copied to clipboard',
+
+      // Text Selection Toolbar
+      'edit_selection': 'Edit Selection',
+      'edit_selection_hint': 'How should I change this section? (e.g. "Make it more vivid", "Add an example")',
+      'selected_text_preview': 'Selected passage',
+      'generate_new_version': 'Generate New Version',
+      'close_toolbar': 'Close',
+      'selection_too_short': 'Please select a longer passage.',
     },
     'de': {
       'my_talks': 'Meine Gespräche',

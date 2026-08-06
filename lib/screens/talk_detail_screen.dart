@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../widgets/talk_diff_view.dart';
+import '../widgets/text_selection_toolbar.dart';
 
 class FlatTreeNode {
   final Map<String, dynamic> node;
@@ -28,6 +29,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   Map<String, dynamic>? _selectedNode;
   final _instructionController = TextEditingController();
   Timer? _pollTimer;
+
+  // Text selection toolbar
+  final _toolbarController = TextSelectionToolbarController();
+  final _textContainerKey = GlobalKey();
+  String _currentSelectedText = '';
+  String _pendingSelectedText = '';
+  bool _isPartialSubmitting = false;
 
   bool _isReloading = false;
   bool _isSubmitting = false;
@@ -72,6 +80,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _instructionController.dispose();
+    _toolbarController.dispose();
     super.dispose();
   }
 
@@ -221,6 +230,123 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         _isSubmitting = false;
       });
     }
+  }
+
+  /// Submits a partial (section-level) update triggered from the floating
+  /// text selection toolbar.
+  Future<void> _submitPartialUpdate({
+    required String selectedText,
+    required String instruction,
+  }) async {
+    if (_selectedNode == null) return;
+
+    // Hide toolbar and clear selection state immediately for UX
+    _toolbarController.hide();
+    setState(() {
+      _isPartialSubmitting = true;
+      _currentSelectedText = '';
+      _errorMessage = '';
+    });
+
+    try {
+      final newRequest = await ApiService.createTalkRequest(
+        mode: 'partial_update',
+        parentId: _selectedNode!['id'],
+        instruction: instruction,
+        selectedText: selectedText,
+      );
+      setState(() {
+        _selectedNode = newRequest;
+        _viewDiff = false;
+      });
+      await _reloadData();
+    } catch (e) {
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPartialSubmitting = false;
+        });
+      }
+    }
+  }
+
+  /// Snaps a raw selection range to full word boundaries so partial/cut-off
+  /// words are automatically completed.
+  String _snapToWordBoundaries(String fullText, TextSelection selection) {
+    if (selection.isCollapsed || fullText.isEmpty) return '';
+
+    int start = selection.start.clamp(0, fullText.length);
+    int end = selection.end.clamp(0, fullText.length);
+
+    if (start > end) {
+      final temp = start;
+      start = end;
+      end = temp;
+    }
+
+    // Expand start backwards to start of word
+    while (start > 0 && _isWordChar(fullText[start - 1])) {
+      start--;
+    }
+
+    // Expand end forwards to end of word
+    while (end < fullText.length && _isWordChar(fullText[end])) {
+      end++;
+    }
+
+    return fullText.substring(start, end).trim();
+  }
+
+  bool _isWordChar(String char) {
+    return RegExp(r'[\w\u00C0-\u024F\u1E00-\u1EFF]').hasMatch(char);
+  }
+
+  /// Opens the floating editing toolbar only when the user finishes dragging and releases the mouse.
+  void _handleSelectionCompleted() {
+    final selected = _pendingSelectedText;
+    if (selected.length < 10) return;
+
+    if (selected == _currentSelectedText && _toolbarController.isVisible) return;
+
+    setState(() => _currentSelectedText = selected);
+
+    final RenderBox? box = _textContainerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final containerOffset = box.localToGlobal(Offset.zero);
+    final containerSize = box.size;
+
+    final anchorRect = Rect.fromLTWH(
+      containerOffset.dx,
+      containerOffset.dy + containerSize.height * 0.4,
+      containerSize.width,
+      0,
+    );
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final overlay = Overlay.of(context);
+    _toolbarController.show(
+      overlay: overlay,
+      anchorRect: anchorRect,
+      selectedText: selected,
+      lang: authProvider.language,
+      onSubmit: (selText, instruction) {
+        _submitPartialUpdate(
+          selectedText: selText,
+          instruction: instruction,
+        );
+      },
+      onDismiss: () {
+        setState(() => _currentSelectedText = '');
+      },
+    );
   }
 
   Future<void> _deleteVersionNode(Map<String, dynamic> node) async {
@@ -769,6 +895,47 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
+  /// Returns a [TextSpan] where the first occurrence of [highlighted] is styled
+  /// with a purple/indigo background, ensuring selected text remains visually distinct
+  /// even when focus moves to the toolbar popup, without interrupting Flutter's native
+  /// text selection handling.
+  TextSpan _buildSelectableTextSpan(String fullText, String highlighted) {
+    final baseStyle = GoogleFonts.roboto(
+      color: Colors.white,
+      fontSize: 15,
+      height: 1.65,
+    );
+
+    if (highlighted.isEmpty) {
+      return TextSpan(text: fullText, style: baseStyle);
+    }
+
+    final idx = fullText.indexOf(highlighted);
+    if (idx < 0) {
+      return TextSpan(text: fullText, style: baseStyle);
+    }
+
+    final before = fullText.substring(0, idx);
+    final match = fullText.substring(idx, idx + highlighted.length);
+    final after = fullText.substring(idx + highlighted.length);
+
+    return TextSpan(
+      style: baseStyle,
+      children: [
+        TextSpan(text: before),
+        TextSpan(
+          text: match,
+          style: baseStyle.copyWith(
+            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.45),
+            color: const Color(0xFFEEF2FF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        TextSpan(text: after),
+      ],
+    );
+  }
+
   Widget _buildActiveNodeWorkspace(String lang) {
     if (_selectedNode == null) return const SizedBox.shrink();
 
@@ -904,28 +1071,64 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFF243044)),
             ),
-            child: _selectedNode!['status'] == 'pending' || _selectedNode!['status'] == 'processing'
+            child: _selectedNode!['status'] == 'pending' ||
+                    _selectedNode!['status'] == 'processing'
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const CircularProgressIndicator(color: Color(0xFF818CF8)),
+                        const CircularProgressIndicator(
+                            color: Color(0xFF818CF8)),
                         const SizedBox(height: 16),
                         Text(
                           AppTranslations.tr('status_generating', lang),
-                          style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
+                          style: GoogleFonts.inter(
+                              color: const Color(0xFF94A3B8), fontSize: 13),
                         ),
                       ],
                     ),
                   )
-                : SelectableText(
-                    text,
-                    style: GoogleFonts.roboto(
-                      color: Colors.white,
-                      fontSize: 15,
-                      height: 1.65,
-                    ),
-                  ),
+                : _isPartialSubmitting
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(
+                                color: Color(0xFF818CF8)),
+                            const SizedBox(height: 16),
+                            Text(
+                              AppTranslations.tr('status_generating', lang),
+                              style: GoogleFonts.inter(
+                                  color: const Color(0xFF94A3B8),
+                                  fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Container(
+                        key: _textContainerKey,
+                        child: Listener(
+                          onPointerUp: (_) => _handleSelectionCompleted(),
+                          child: SelectableText.rich(
+                            _buildSelectableTextSpan(text, _currentSelectedText),
+                            selectionColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
+                            onSelectionChanged: (selection, cause) {
+                              // Extract the selected substring snapped to full word boundaries
+                              final selected = _snapToWordBoundaries(text, selection);
+
+                              _pendingSelectedText = selected;
+
+                              // Dismiss on empty / too-short selection
+                              if (selected.length < 10) {
+                                if (_toolbarController.isVisible) {
+                                  _toolbarController.hide();
+                                  setState(() => _currentSelectedText = '');
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                      ),
           ),
         const SizedBox(height: 16),
         if (isCompleted)

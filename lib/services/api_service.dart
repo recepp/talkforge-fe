@@ -232,6 +232,7 @@ class ApiService {
     int? duration,
     String? instruction,
     int? parentId,
+    String? selectedText,
   }) async {
     final body = {
       'mode': mode,
@@ -242,8 +243,9 @@ class ApiService {
       if (mode == 'new' && customSpeechType != null && customSpeechType.isNotEmpty)
         'custom_speech_type': customSpeechType,
       if (mode == 'new') 'duration': duration,
-      if (mode == 'update') 'instruction': instruction,
-      if (mode == 'update') 'parent_id': parentId,
+      if (mode == 'update' || mode == 'partial_update') 'instruction': instruction,
+      if (mode == 'update' || mode == 'partial_update') 'parent_id': parentId,
+      if (mode == 'partial_update' && selectedText != null) 'selected_text': selectedText,
     };
 
     final response = await _safePost(
