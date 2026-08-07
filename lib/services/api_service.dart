@@ -252,6 +252,7 @@ class ApiService {
     int? parentId,
     String? selectedText,
     String? generatedText,
+    int? roomId,
   }) async {
     final body = {
       'mode': mode,
@@ -259,6 +260,7 @@ class ApiService {
       if (mode == 'new') 'place': place,
       if (mode == 'new') 'topic': topic,
       if (mode == 'new') 'speech_type': speechType,
+      if (mode == 'new' && roomId != null) 'room_id': roomId,
       if (mode == 'new' && customSpeechType != null && customSpeechType.isNotEmpty)
         'custom_speech_type': customSpeechType,
       if (mode == 'new') 'duration': duration,
@@ -283,5 +285,41 @@ class ApiService {
   static Future<void> deleteTalkRequest(int id) async {
     final response = await _safeDelete(Uri.parse('${Constants.baseUrl}/talks/$id'));
     await _parseResponse(response, endpoint: '/talks/$id');
+  }
+
+  // Create a shared room
+  static Future<Map<String, dynamic>> createRoom(String name) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/rooms'),
+      body: jsonEncode({'name': name}),
+    );
+    return await _parseResponse(response, endpoint: '/rooms') as Map<String, dynamic>;
+  }
+
+  // List rooms the current user is a member of
+  static Future<List<dynamic>> getRooms() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/rooms'));
+    final data = await _parseResponse(response, endpoint: '/rooms');
+    if (data is List) return data;
+    return [];
+  }
+
+  // Get a single room's details (including members)
+  static Future<Map<String, dynamic>> getRoom(int id) async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/rooms/$id'));
+    return await _parseResponse(response, endpoint: '/rooms/$id') as Map<String, dynamic>;
+  }
+
+  // Invite (or update the role of) a member in a room by email
+  static Future<Map<String, dynamic>> inviteRoomMember({
+    required int roomId,
+    required String email,
+    required String role,
+  }) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/rooms/$roomId/members'),
+      body: jsonEncode({'email': email, 'role': role}),
+    );
+    return await _parseResponse(response, endpoint: '/rooms/$roomId/members') as Map<String, dynamic>;
   }
 }

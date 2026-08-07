@@ -7,7 +7,12 @@ import '../services/api_service.dart';
 import 'talk_detail_screen.dart';
 
 class CreateTalkDialog extends StatefulWidget {
-  const CreateTalkDialog({super.key});
+  const CreateTalkDialog({super.key, this.roomId});
+
+  /// When set, the created talk is attached to this room instead of being
+  /// personal (requires the caller to already be a writer member — the
+  /// backend re-validates this regardless).
+  final int? roomId;
 
   @override
   State<CreateTalkDialog> createState() => _CreateTalkDialogState();
@@ -167,6 +172,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
         speechType: speechTypeKey,
         customSpeechType: customPromptText,
         duration: _durationMinutes.toInt(),
+        roomId: widget.roomId,
       );
 
       if (mounted) {

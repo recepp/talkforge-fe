@@ -364,6 +364,7 @@ class _TalksScreenState extends State<TalksScreen> {
                           final status = talk['status'] as String;
                           final statusColor = _getStatusColor(status);
                           final topic = talk['topic'] as String? ?? 'Konuşma Hazırlığı';
+                          final isShared = talk['room_id'] != null;
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 14),
@@ -448,6 +449,32 @@ class _TalksScreenState extends State<TalksScreen> {
                                               ],
                                             ),
                                           ),
+                                          if (isShared) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF059669).withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(color: const Color(0xFF34D399).withOpacity(0.4)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.groups_rounded, size: 11, color: Color(0xFF34D399)),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Paylaşımlı',
+                                                    style: GoogleFonts.inter(
+                                                      color: const Color(0xFF34D399),
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                           const Spacer(),
                                           Material(
                                             color: Colors.transparent,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import 'talks_screen.dart';
+import 'rooms_screen.dart';
 import 'profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = const [
     TalksScreen(),
+    RoomsScreen(),
     ProfileScreen(),
   ];
 
@@ -56,6 +58,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               icon: const Icon(Icons.forum_outlined),
               activeIcon: const Icon(Icons.forum),
               label: AppTranslations.tr('my_talks', lang),
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.groups_outlined),
+              activeIcon: const Icon(Icons.groups),
+              label: 'Odalar',
             ),
             BottomNavigationBarItem(
               icon: const Icon(Icons.account_circle_outlined),
