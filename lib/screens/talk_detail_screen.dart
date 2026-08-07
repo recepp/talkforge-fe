@@ -41,6 +41,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   Timer? _selectionDebounce;
   bool _isPartialSubmitting = false;
   bool _isTranslating = false;
+  // Ephemeral translation preview of the selected node — never persisted,
+  // never affects the version tree or what edits are based on.
+  String? _translatedLanguage;
+  String? _translatedText;
+  bool _viewingTranslation = false;
   bool _heroExpanded = false;
   bool _versionsExpanded = false;
 
@@ -257,6 +262,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       setState(() {
         _selectedNode = newRequest;
         _viewDiff = false;
+        _translatedLanguage = null;
+        _translatedText = null;
+        _viewingTranslation = false;
       });
       await _reloadData();
     } catch (e) {
@@ -300,6 +308,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       setState(() {
         _selectedNode = newRequest;
         _viewDiff = false;
+        _translatedLanguage = null;
+        _translatedText = null;
+        _viewingTranslation = false;
       });
       await _reloadData();
     } catch (e) {
@@ -399,6 +410,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       setState(() {
         _selectedNode = newRequest;
         _viewDiff = false;
+        _translatedLanguage = null;
+        _translatedText = null;
+        _viewingTranslation = false;
       });
       await _reloadData();
     } catch (e) {
@@ -419,8 +433,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   /// Opens a picker with every supported language (minus whichever the
-  /// current node is already in) and kicks off a translated version of just
-  /// the one the user picks.
+  /// current node is already in) and previews the current node's text
+  /// translated into the one picked. This never creates a new version —
+  /// it's just an alternate-language view of the same version; editing
+  /// always continues from the original-language text underneath.
   Future<void> _pickLanguageAndTranslate() async {
     if (_selectedNode == null || _isTranslating) return;
     final currentText = _selectedNode!['generated_text'] as String? ?? '';
@@ -465,12 +481,14 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     setState(() => _isTranslating = true);
     try {
-      await ApiService.createTalkRequest(
-        mode: 'translate',
-        parentId: _selectedNode!['id'],
-        language: target,
-      );
-      await _reloadData();
+      final result = await ApiService.translateTalk(_selectedNode!['id'] as int, target);
+      if (mounted) {
+        setState(() {
+          _translatedLanguage = result['language'] as String? ?? target;
+          _translatedText = (result['text'] as String? ?? '').trim();
+          _viewingTranslation = true;
+        });
+      }
     } catch (e) {
       if (mounted) {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -1070,6 +1088,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     setState(() {
                       _selectedNode = node;
                       _viewDiff = false;
+                      _translatedLanguage = null;
+                      _translatedText = null;
+                      _viewingTranslation = false;
                     });
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -1250,6 +1271,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
     final isCompleted = _selectedNode!['status'] == 'completed';
     final text = (_selectedNode!['generated_text'] as String? ?? '').trim();
+    final displayedText = (_viewingTranslation && _translatedText != null) ? _translatedText! : text;
     final wordCount = _countWords(text);
     final readTimeMinutes = (wordCount / 130).ceil();
     final suggestions = _getQuickSuggestions(lang);
@@ -1303,7 +1325,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   if (isCompleted && text.isNotEmpty)
                     (isCompact
                         ? IconButton(
-                            onPressed: () => _copyToClipboard(text, lang),
+                            onPressed: () => _copyToClipboard(displayedText, lang),
                             tooltip: AppTranslations.tr('copy_speech', lang),
                             icon: const Icon(Icons.copy, size: 16),
                             style: IconButton.styleFrom(
@@ -1313,7 +1335,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             ),
                           )
                         : OutlinedButton.icon(
-                            onPressed: () => _copyToClipboard(text, lang),
+                            onPressed: () => _copyToClipboard(displayedText, lang),
                             icon: const Icon(Icons.copy, size: 14),
                             label: Text(AppTranslations.tr('copy_speech', lang)),
                             style: OutlinedButton.styleFrom(
@@ -1332,7 +1354,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   spacing: 12,
                   runSpacing: 8,
                   children: [
-                    ShareButtons(text: text),
+                    ShareButtons(text: displayedText),
                     OutlinedButton.icon(
                       onPressed: _isTranslating ? null : _pickLanguageAndTranslate,
                       icon: _isTranslating
@@ -1402,7 +1424,62 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        if (_viewDiff && parentNode != null && isCompleted)
+        if (_translatedText != null) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text(AppTranslations.translateLanguageName(_selectedNode!['language'], lang)),
+                selected: !_viewingTranslation,
+                onSelected: (_) => setState(() => _viewingTranslation = false),
+                selectedColor: const Color(0xFF4F46E5),
+                backgroundColor: const Color(0xFF161E2E),
+                labelStyle: GoogleFonts.inter(
+                  color: !_viewingTranslation ? Colors.white : const Color(0xFF94A3B8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              ChoiceChip(
+                label: Text(_translatedLanguage ?? ''),
+                selected: _viewingTranslation,
+                onSelected: (_) => setState(() => _viewingTranslation = true),
+                selectedColor: const Color(0xFF4F46E5),
+                backgroundColor: const Color(0xFF161E2E),
+                labelStyle: GoogleFonts.inter(
+                  color: _viewingTranslation ? Colors.white : const Color(0xFF94A3B8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          if (_viewingTranslation)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'Bu bir önizleme çevirisidir ve kaydedilmez. Düzenlemeler her zaman orijinal dilden devam eder.',
+                style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 11, fontStyle: FontStyle.italic),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+        if (_viewingTranslation && _translatedText != null)
+          Container(
+            padding: const EdgeInsets.all(20),
+            constraints: const BoxConstraints(minHeight: 240),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161E2E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF243044)),
+            ),
+            child: SelectableText(
+              _translatedText!,
+              style: GoogleFonts.roboto(color: Colors.white, fontSize: 15, height: 1.65),
+            ),
+          )
+        else if (_viewDiff && parentNode != null && isCompleted)
           TalkDiffView(
             parentText: parentNode['generated_text'] ?? '',
             childText: text,

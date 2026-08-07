@@ -256,7 +256,7 @@ class ApiService {
   }) async {
     final body = {
       'mode': mode,
-      if (mode == 'new' || mode == 'translate') 'language': language,
+      if (mode == 'new') 'language': language,
       if (mode == 'new') 'place': place,
       if (mode == 'new') 'topic': topic,
       if (mode == 'new') 'speech_type': speechType,
@@ -266,7 +266,7 @@ class ApiService {
       if (mode == 'new') 'duration': duration,
       if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
         'instruction': instruction,
-      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update' || mode == 'translate')
+      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
         'parent_id': parentId,
       if ((mode == 'partial_update' || mode == 'manual_update') && selectedText != null)
         'selected_text': selectedText,
@@ -279,6 +279,16 @@ class ApiService {
       body: jsonEncode(body),
     );
     return await _parseResponse(response, endpoint: '/talks') as Map<String, dynamic>;
+  }
+
+  // Preview a talk's text translated into another language. Not persisted —
+  // no new version is created; the returned text is for display only.
+  static Future<Map<String, dynamic>> translateTalk(int talkId, String language) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/talks/$talkId/translate'),
+      body: jsonEncode({'language': language}),
+    );
+    return await _parseResponse(response, endpoint: '/talks/$talkId/translate') as Map<String, dynamic>;
   }
 
   // Delete Dialogue Request
