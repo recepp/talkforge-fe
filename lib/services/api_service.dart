@@ -322,4 +322,27 @@ class ApiService {
     );
     return await _parseResponse(response, endpoint: '/rooms/$roomId/members') as Map<String, dynamic>;
   }
+
+  // List a talk's discussion thread
+  static Future<List<dynamic>> getTalkMessages(int talkId) async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/talks/$talkId/messages'));
+    final data = await _parseResponse(response, endpoint: '/talks/$talkId/messages');
+    if (data is List) return data;
+    return [];
+  }
+
+  // Post a message to a talk's discussion thread
+  static Future<Map<String, dynamic>> postTalkMessage(int talkId, String text) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/talks/$talkId/messages'),
+      body: jsonEncode({'text': text}),
+    );
+    return await _parseResponse(response, endpoint: '/talks/$talkId/messages') as Map<String, dynamic>;
+  }
+
+  // Summarize a talk's discussion thread into a new "update" version
+  static Future<Map<String, dynamic>> summarizeDiscussion(int talkId) async {
+    final response = await _safePost(Uri.parse('${Constants.baseUrl}/talks/$talkId/messages/summarize'));
+    return await _parseResponse(response, endpoint: '/talks/$talkId/messages/summarize') as Map<String, dynamic>;
+  }
 }

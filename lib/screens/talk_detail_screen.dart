@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../widgets/talk_diff_view.dart';
 import '../widgets/text_selection_toolbar.dart';
 import '../widgets/share_buttons.dart';
+import '../widgets/discussion_panel.dart';
 
 class FlatTreeNode {
   final Map<String, dynamic> node;
@@ -1606,6 +1607,15 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               ],
             ),
           ),
+        if (_selectedNode!['room_id'] != null) ...[
+          const SizedBox(height: 16),
+          DiscussionPanel(
+            key: ValueKey(_selectedNode!['id']),
+            talkId: _selectedNode!['id'] as int,
+            roomId: _selectedNode!['room_id'] as int,
+            onVersionGenerated: _reloadData,
+          ),
+        ],
       ],
     );
   }
