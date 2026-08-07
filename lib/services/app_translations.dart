@@ -112,6 +112,7 @@ class AppTranslations {
 
       // Text Selection Toolbar
       'edit_selection': 'Seçimi Düzenle',
+      'edit': 'Düzenle',
       'edit_selection_hint': 'Bu bölümü yapay zeka ile değiştirmek için yönerge yazın (Örn: "Daha akıcı yap")',
       'selected_text_preview': 'Seçilen Bölüm (Düzenlenebilir)',
       'edit_manually_hint': 'Seçilen metni doğrudan burada düzenleyebilirsiniz...',
@@ -235,6 +236,7 @@ class AppTranslations {
 
       // Text Selection Toolbar
       'edit_selection': 'Edit Selection',
+      'edit': 'Edit',
       'edit_selection_hint': 'Type instruction for AI (e.g. "Make it more vivid", "Add an example")',
       'selected_text_preview': 'Selected Section (Editable)',
       'edit_manually_hint': 'Directly edit the selected text here...',
@@ -342,6 +344,7 @@ class AppTranslations {
       'view_diff': 'Änderungen anzeigen (Diff)',
       'view_full_text': 'Vollständigen Text anzeigen',
       'update_instruction': 'Rede umgestalten / bearbeiten',
+      'edit': 'Bearbeiten',
       'update_instruction_hint': 'Was möchten Sie ändern? (Z.B.: "Füge ein prägnantes Ende hinzu")',
       'apply_changes': 'Änderungen anwenden',
       'copy_speech': 'Text kopieren',
@@ -446,6 +449,7 @@ class AppTranslations {
       'view_diff': 'Ver Cambios (Diff)',
       'view_full_text': 'Ver Texto Completo',
       'update_instruction': 'Reorganizar / Editar Discurso',
+      'edit': 'Editar',
       'update_instruction_hint': '¿Qué le gustaría cambiar? (Ej.: "Añadir un final más impactante")',
       'apply_changes': 'Aplicar Cambios',
       'copy_speech': 'Copiar Texto',
@@ -550,6 +554,7 @@ class AppTranslations {
       'view_diff': 'Voir les modifications (Diff)',
       'view_full_text': 'Voir le texte complet',
       'update_instruction': 'Remanier / Modifier le discours',
+      'edit': 'Modifier',
       'update_instruction_hint': "Que souhaitez-vous modifier ? (Ex: 'Ajouter une fin plus percutante')",
       'apply_changes': 'Appliquer les modifications',
       'copy_speech': 'Copier le texte',
