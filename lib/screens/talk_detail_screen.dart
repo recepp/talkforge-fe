@@ -191,10 +191,44 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return list;
   }
 
-  /// Returns the stable version number stored in the backend for this node.
-  int _getVersionNumber(Map<String, dynamic> node) {
-    return (node['version_number'] as num?)?.toInt() ?? 1;
+  void _assignVersionLabels(Map<String, dynamic> node, String label) {
+    node['version_label'] = label;
+    final children = node['children'] as List<dynamic>?;
+    if (children != null && children.isNotEmpty) {
+      children.sort((a, b) {
+        final idA = ((a as Map<String, dynamic>)['id'] as num?)?.toInt() ?? 0;
+        final idB = ((b as Map<String, dynamic>)['id'] as num?)?.toInt() ?? 0;
+        return idA.compareTo(idB);
+      });
+
+      for (int i = 0; i < children.length; i++) {
+        final child = children[i] as Map<String, dynamic>;
+        String childLabel;
+        if (i == 0) {
+          final parts = label.split('.');
+          final lastVal = int.tryParse(parts.last) ?? 1;
+          parts[parts.length - 1] = '${lastVal + 1}';
+          childLabel = parts.join('.');
+        } else {
+          childLabel = '$label.$i';
+        }
+        _assignVersionLabels(child, childLabel);
+      }
+    }
   }
+
+  String _getVersionLabel(Map<String, dynamic> node) {
+    if (_talkTree.isNotEmpty && (_talkTree['version_label'] == null)) {
+      _assignVersionLabels(_talkTree, '1');
+    }
+    final label = node['version_label'] as String?;
+    if (label != null && label.isNotEmpty) {
+      return label;
+    }
+    final versionNum = (node['version_number'] as num?)?.toInt() ?? 1;
+    return '$versionNum';
+  }
+
 
   Future<void> _submitUpdate() async {
     if (_selectedNode == null) return;
@@ -485,11 +519,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     final nodeId = node['id'] as int;
     final isRoot = node['parent_id'] == null || nodeId == _talkTree['id'];
-    final versionNum = _getVersionNumber(node);
+    final versionLabel = _getVersionLabel(node);
 
     final titleText = isRoot
         ? '${AppTranslations.tr('delete_version', lang)} (Root)'
-        : '${AppTranslations.tr('delete_version', lang)} (#$versionNum)';
+        : '${AppTranslations.tr('delete_version', lang)} (#$versionLabel)';
     final contentText = AppTranslations.tr('confirm_delete_version', lang);
 
     final confirmed = await showDialog<bool>(
@@ -654,11 +688,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
+    if (_talkTree.isNotEmpty) {
+      _assignVersionLabels(_talkTree, '1');
+    }
     final flatNodes = _flattenTree(_talkTree, 0);
     flatNodes.sort((a, b) {
-      final vA = _getVersionNumber(a.node);
-      final vB = _getVersionNumber(b.node);
-      if (vA != vB) return vB.compareTo(vA);
       final idA = (a.node['id'] as num?)?.toInt() ?? 0;
       final idB = (b.node['id'] as num?)?.toInt() ?? 0;
       return idB.compareTo(idA);
@@ -951,9 +985,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                            isRoot
-                                    ? '${AppTranslations.tr("version", lang)} #${_getVersionNumber(node)} (Root)'
-                                    : '${AppTranslations.tr("version", lang)} #${_getVersionNumber(node)}',
+                                isRoot
+                                    ? '${AppTranslations.tr("version", lang)} #${_getVersionLabel(node)} (Root)'
+                                    : '${AppTranslations.tr("version", lang)} #${_getVersionLabel(node)}',
                                 style: GoogleFonts.inter(
                                   color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
                                   fontSize: 13,
@@ -1095,11 +1129,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         Text(
                           () {
                             final isRootNode = _selectedNode!['parent_id'] == null;
-                            final vNum = _getVersionNumber(_selectedNode!);
+                            final vLabel = _getVersionLabel(_selectedNode!);
                             if (isRootNode) {
-                              return '${AppTranslations.tr("version", lang)} #$vNum (Root)';
+                              return '${AppTranslations.tr("version", lang)} #$vLabel (Root)';
                             }
-                            return '${AppTranslations.tr("version", lang)} #$vNum';
+                            return '${AppTranslations.tr("version", lang)} #$vLabel';
                           }(),
                           style: GoogleFonts.inter(
                             color: Colors.white,
@@ -1184,8 +1218,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           TalkDiffView(
             parentText: parentNode['generated_text'] ?? '',
             childText: text,
-            parentId: _getVersionNumber(parentNode),
-            childId: _getVersionNumber(_selectedNode!),
+            parentId: _getVersionLabel(parentNode),
+            childId: _getVersionLabel(_selectedNode!),
           )
         else
           Container(
