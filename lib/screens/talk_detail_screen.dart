@@ -35,6 +35,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   final _textContainerKey = GlobalKey();
   String _currentSelectedText = '';
   String _pendingSelectedText = '';
+  TextSelection? _currentTextSelection;
   bool _isPartialSubmitting = false;
 
   bool _isReloading = false;
@@ -279,8 +280,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
   /// Snaps a raw selection range to full word boundaries so partial/cut-off
   /// words are automatically completed.
-  String _snapToWordBoundaries(String fullText, TextSelection selection) {
-    if (selection.isCollapsed || fullText.isEmpty) return '';
+  TextSelection _getSnappedSelection(String fullText, TextSelection selection) {
+    if (selection.isCollapsed || fullText.isEmpty) return selection;
 
     int start = selection.start.clamp(0, fullText.length);
     int end = selection.end.clamp(0, fullText.length);
@@ -301,7 +302,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       end++;
     }
 
-    return fullText.substring(start, end).trim();
+    return TextSelection(baseOffset: start, extentOffset: end);
+  }
+
+  String _snapToWordBoundaries(String fullText, TextSelection selection) {
+    if (selection.isCollapsed || fullText.isEmpty) return '';
+    final snapped = _getSnappedSelection(fullText, selection);
+    return fullText.substring(snapped.start, snapped.end).trim();
   }
 
   bool _isWordChar(String char) {
@@ -384,13 +391,55 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     final containerOffset = box.localToGlobal(Offset.zero);
     final containerSize = box.size;
+    final text = (_selectedNode?['generated_text'] as String? ?? '').trim();
 
-    final anchorRect = Rect.fromLTWH(
-      containerOffset.dx,
-      containerOffset.dy + containerSize.height * 0.4,
-      containerSize.width,
-      0,
-    );
+    Rect anchorRect;
+    if (_currentTextSelection != null && !_currentTextSelection!.isCollapsed && text.isNotEmpty) {
+      final snappedSelection = _getSnappedSelection(text, _currentTextSelection!);
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: GoogleFonts.roboto(
+            fontSize: 15,
+            height: 1.65,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout(maxWidth: containerSize.width);
+
+      final boxes = textPainter.getBoxesForSelection(snappedSelection);
+      if (boxes.isNotEmpty) {
+        double minX = double.infinity;
+        double maxX = -double.infinity;
+        double minY = double.infinity;
+        double maxY = -double.infinity;
+
+        for (final b in boxes) {
+          if (b.left < minX) minX = b.left;
+          if (b.right > maxX) maxX = b.right;
+          if (b.top < minY) minY = b.top;
+          if (b.bottom > maxY) maxY = b.bottom;
+        }
+
+        final selectionLocalRect = Rect.fromLTRB(minX, minY, maxX, maxY);
+        anchorRect = selectionLocalRect.shift(containerOffset);
+      } else {
+        anchorRect = Rect.fromLTWH(
+          containerOffset.dx,
+          containerOffset.dy,
+          containerSize.width,
+          containerSize.height,
+        );
+      }
+    } else {
+      anchorRect = Rect.fromLTWH(
+        containerOffset.dx,
+        containerOffset.dy,
+        containerSize.width,
+        containerSize.height,
+      );
+    }
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final overlay = Overlay.of(context);
@@ -1189,6 +1238,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                             _buildSelectableTextSpan(text, _currentSelectedText),
                             selectionColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
                             onSelectionChanged: (selection, cause) {
+                              _currentTextSelection = selection;
+
                               // Extract the selected substring snapped to full word boundaries
                               final selected = _snapToWordBoundaries(text, selection);
 
@@ -1269,6 +1320,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
                         maxLines: 2,
                         minLines: 1,
+                        onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           hintText: AppTranslations.tr('update_instruction_hint', lang),
                           hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
@@ -1288,10 +1340,12 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
-                      onPressed: _isSubmitting ? null : _submitUpdate,
+                      onPressed: (_isSubmitting || _instructionController.text.trim().isEmpty) ? null : _submitUpdate,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
+                        disabledBackgroundColor: const Color(0xFF334155).withValues(alpha: 0.5),
                         foregroundColor: Colors.white,
+                        disabledForegroundColor: const Color(0xFF64748B),
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 2,
@@ -1302,7 +1356,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
-                          : const Icon(Icons.send_rounded, size: 16),
+                          : Icon(
+                              Icons.send_rounded,
+                              size: 16,
+                              color: _instructionController.text.trim().isEmpty
+                                  ? const Color(0xFF64748B)
+                                  : Colors.white,
+                            ),
                       label: Text(
                         _isSubmitting
                             ? AppTranslations.tr('status_generating', lang)

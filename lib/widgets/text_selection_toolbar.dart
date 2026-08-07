@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_translations.dart';
 
-/// Controller that manages the lifecycle of a [TextSelectionToolbar].
-/// Attach it to a [SelectionArea] and call [show]/[hide] from the selection
-/// change callback.
+/// Controller that manages the lifecycle of a floating [TextSelectionToolbar].
+/// Attach it to a [SelectionArea] or [SelectableText] and call [show]/[hide]
+/// when text selection changes.
 class TextSelectionToolbarController {
   OverlayEntry? _overlayEntry;
   bool get isVisible => _overlayEntry != null;
@@ -90,6 +90,9 @@ class _TextSelectionToolbarOverlayState
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
+  bool _isExpanded = false;
+  bool _isHovered = false;
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +119,13 @@ class _TextSelectionToolbarOverlayState
     super.dispose();
   }
 
+  void _expandToolbar() {
+    setState(() {
+      _isExpanded = true;
+    });
+    _animCtrl.forward(from: 0.0);
+  }
+
   void _handleAISubmit() {
     final instruction = _instructionController.text.trim();
     if (instruction.isEmpty) return;
@@ -137,16 +147,51 @@ class _TextSelectionToolbarOverlayState
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
 
+    if (!_isExpanded) {
+      const double badgeWidth = 120.0;
+      const double badgeHeight = 38.0;
+
+      double left = (widget.anchorRect.center.dx - badgeWidth / 2)
+          .clamp(16.0, screenSize.width - badgeWidth - 16.0);
+      double top = widget.anchorRect.top - 46.0;
+      if (top < 60.0) {
+        top = widget.anchorRect.bottom + 10.0;
+      }
+      top = top.clamp(20.0, screenSize.height - badgeHeight - 20.0);
+
+      return Stack(
+        children: [
+          // Transparent backdrop to dismiss on click outside
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: widget.onDismiss,
+              behavior: HitTestBehavior.translucent,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          // Floating badge
+          Positioned(
+            left: left,
+            top: top,
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: _buildBadge(),
+            ),
+          ),
+        ],
+      );
+    }
+
     // Spacious responsive width for comfortable desktop/tablet reading
     final double toolbarWidth = screenSize.width > 900
         ? 780.0
         : (screenSize.width - 32.0).clamp(320.0, 780.0);
 
     // Center modal nicely on screen
-    double left = (screenSize.width - toolbarWidth) / 2;
-    left = left.clamp(16.0, screenSize.width - toolbarWidth - 16.0);
+    double leftModal = (screenSize.width - toolbarWidth) / 2;
+    leftModal = leftModal.clamp(16.0, screenSize.width - toolbarWidth - 16.0);
 
-    double top = ((screenSize.height - 540.0) / 2).clamp(30.0, 160.0);
+    double topModal = ((screenSize.height - 540.0) / 2).clamp(30.0, 160.0);
 
     return Stack(
       children: [
@@ -156,14 +201,14 @@ class _TextSelectionToolbarOverlayState
             onTap: widget.onDismiss,
             behavior: HitTestBehavior.opaque,
             child: Container(
-              color: Colors.black.withOpacity(0.55),
+              color: Colors.black.withValues(alpha: 0.55),
             ),
           ),
         ),
         // Floating toolbar card positioned on overlay
         Positioned(
-          left: left,
-          top: top,
+          left: leftModal,
+          top: topModal,
           width: toolbarWidth,
           child: FadeTransition(
             opacity: _fadeAnim,
@@ -174,6 +219,85 @@ class _TextSelectionToolbarOverlayState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBadge() {
+    return Material(
+      color: Colors.transparent,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: _expandToolbar,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            transform: _isHovered
+                ? (Matrix4.identity()..scale(1.05, 1.05))
+                : Matrix4.identity(),
+            transformAlignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: _isHovered
+                    ? const [Color(0xFF4338CA), Color(0xFF312E81)]
+                    : const [Color(0xFF312E81), Color(0xFF1E1B4B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isHovered
+                    ? const Color(0xFFA5B4FC)
+                    : const Color(0xFF818CF8),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1)
+                      .withValues(alpha: _isHovered ? 0.55 : 0.35),
+                  blurRadius: _isHovered ? 16 : 10,
+                  spreadRadius: _isHovered ? 2 : 1,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.edit_note_rounded,
+                  color: Color(0xFFA5B4FC),
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  AppTranslations.tr('edit', widget.lang),
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: const Color(0xFFA5B4FC).withValues(alpha: 0.7),
+                  size: 10,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -191,21 +315,21 @@ class _TextSelectionToolbarOverlayState
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isTextEmpty
-                ? const Color(0xFFEF4444).withOpacity(0.7)
-                : const Color(0xFF6366F1).withOpacity(0.7),
+                ? const Color(0xFFEF4444).withValues(alpha: 0.7)
+                : const Color(0xFF6366F1).withValues(alpha: 0.7),
             width: 1.8,
           ),
           boxShadow: [
             BoxShadow(
               color: isTextEmpty
-                  ? const Color(0xFFEF4444).withOpacity(0.18)
-                  : const Color(0xFF6366F1).withOpacity(0.25),
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.18)
+                  : const Color(0xFF6366F1).withValues(alpha: 0.25),
               blurRadius: 32,
               spreadRadius: 4,
               offset: const Offset(0, 10),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.65),
+              color: Colors.black.withValues(alpha: 0.65),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -232,7 +356,7 @@ class _TextSelectionToolbarOverlayState
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -306,7 +430,7 @@ class _TextSelectionToolbarOverlayState
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: isTextEmpty
-                                ? Colors.redAccent.withOpacity(0.2)
+                                ? Colors.redAccent.withValues(alpha: 0.2)
                                 : const Color(0xFF334155),
                             borderRadius: BorderRadius.circular(6),
                           ),
@@ -330,7 +454,7 @@ class _TextSelectionToolbarOverlayState
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isTextEmpty ? Colors.redAccent.withOpacity(0.5) : const Color(0xFF334155),
+                          color: isTextEmpty ? Colors.redAccent.withValues(alpha: 0.5) : const Color(0xFF334155),
                         ),
                       ),
                       child: Row(
@@ -395,6 +519,7 @@ class _TextSelectionToolbarOverlayState
                       style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
                       maxLines: 2,
                       minLines: 1,
+                      onChanged: (_) => setState(() {}),
                       onSubmitted: (_) => _handleAISubmit(),
                       decoration: InputDecoration(
                         hintText: AppTranslations.tr('edit_selection_hint', lang),
@@ -425,61 +550,100 @@ class _TextSelectionToolbarOverlayState
                 child: Row(
                   children: [
                     // Manual Save / Delete Button
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _handleManualSubmit,
-                        icon: Icon(
-                          isTextEmpty ? Icons.delete_forever_rounded : Icons.check_circle_outline_rounded,
-                          size: 18,
-                        ),
-                        label: Text(
-                          isTextEmpty
-                              ? AppTranslations.tr('delete_and_save', lang)
-                              : AppTranslations.tr('save_manual_edit', lang),
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
+                    Builder(
+                      builder: (context) {
+                        final isManualChanged = _selectedTextController.text != widget.selectedText;
+                        return Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: isManualChanged ? _handleManualSubmit : null,
+                            icon: Icon(
+                              isTextEmpty ? Icons.delete_forever_rounded : Icons.check_circle_outline_rounded,
+                              size: 18,
+                              color: isTextEmpty
+                                  ? const Color(0xFFF87171).withValues(alpha: isManualChanged ? 1.0 : 0.45)
+                                  : const Color(0xFF34D399).withValues(alpha: isManualChanged ? 1.0 : 0.45),
+                            ),
+                            label: Text(
+                              isTextEmpty
+                                  ? AppTranslations.tr('delete_and_save', lang)
+                                  : AppTranslations.tr('save_manual_edit', lang),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: isTextEmpty
+                                    ? const Color(0xFFF87171).withValues(alpha: isManualChanged ? 1.0 : 0.45)
+                                    : const Color(0xFF34D399).withValues(alpha: isManualChanged ? 1.0 : 0.45),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isTextEmpty ? const Color(0xFFF87171) : const Color(0xFF34D399),
+                              disabledForegroundColor: isTextEmpty
+                                  ? const Color(0xFFF87171).withValues(alpha: 0.45)
+                                  : const Color(0xFF34D399).withValues(alpha: 0.45),
+                              side: BorderSide(
+                                color: isTextEmpty
+                                    ? const Color(0xFFEF4444).withValues(alpha: isManualChanged ? 1.0 : 0.35)
+                                    : const Color(0xFF059669).withValues(alpha: isManualChanged ? 1.0 : 0.35),
+                                width: 1.5,
+                              ),
+                              backgroundColor: isTextEmpty
+                                  ? Colors.redAccent.withValues(alpha: isManualChanged ? 0.1 : 0.03)
+                                  : const Color(0xFF059669).withValues(alpha: isManualChanged ? 0.1 : 0.03),
+                              disabledBackgroundColor: isTextEmpty
+                                  ? Colors.redAccent.withValues(alpha: 0.03)
+                                  : const Color(0xFF059669).withValues(alpha: 0.03),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isTextEmpty ? const Color(0xFFF87171) : const Color(0xFF34D399),
-                          side: BorderSide(
-                            color: isTextEmpty ? const Color(0xFFEF4444) : const Color(0xFF059669),
-                            width: 1.5,
-                          ),
-                          backgroundColor: isTextEmpty
-                              ? Colors.redAccent.withOpacity(0.1)
-                              : const Color(0xFF059669).withOpacity(0.1),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     // AI Generate Button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _handleAISubmit,
-                        icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                        label: Text(
-                          AppTranslations.tr('generate_new_version', lang),
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                    Builder(
+                      builder: (context) {
+                        final isAIInstructionEmpty = _instructionController.text.trim().isEmpty;
+                        return Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: isAIInstructionEmpty ? null : _handleAISubmit,
+                            icon: Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 18,
+                              color: isAIInstructionEmpty
+                                  ? const Color(0xFFA5B4FC).withValues(alpha: 0.45)
+                                  : Colors.white,
+                            ),
+                            label: Text(
+                              AppTranslations.tr('generate_new_version', lang),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isAIInstructionEmpty
+                                    ? const Color(0xFFA5B4FC).withValues(alpha: 0.45)
+                                    : Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              disabledBackgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.22),
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: const Color(0xFFA5B4FC).withValues(alpha: 0.45),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
+                              side: BorderSide(
+                                color: const Color(0xFF6366F1).withValues(alpha: isAIInstructionEmpty ? 0.3 : 0.8),
+                                width: 1.5,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4F46E5),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),
