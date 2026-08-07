@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 /// A room's discussion thread for a specific talk version, plus the
 /// "summarize into a new version" action (writer members only).
@@ -27,6 +28,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
   final _messageController = TextEditingController();
   List<dynamic> _messages = [];
   String? _role;
+  String? _roomName;
   bool _isLoading = true;
   bool _isPosting = false;
   bool _isSummarizing = false;
@@ -65,9 +67,11 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
         ApiService.getRoom(widget.roomId),
       ]);
       if (mounted) {
+        final room = results[1] as Map<String, dynamic>;
         setState(() {
           _messages = results[0] as List<dynamic>;
-          _role = (results[1] as Map<String, dynamic>)['role'] as String?;
+          _role = room['role'] as String?;
+          _roomName = room['name'] as String?;
           _isLoading = false;
         });
       }
@@ -110,11 +114,12 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
       await ApiService.summarizeDiscussion(widget.talkId);
       widget.onVersionGenerated?.call();
       if (mounted) {
+        final c = context.colors;
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tartışma özetlendi, yeni versiyon üretiliyor.'),
-            backgroundColor: Color(0xFF059669),
+          SnackBar(
+            content: const Text('Tartışma özetlendi, yeni versiyon üretiliyor.'),
+            backgroundColor: c.acc,
           ),
         );
       }
@@ -131,38 +136,39 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF161E2E),
+        color: c.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF243044)),
+        border: Border.all(color: c.bordSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.forum_outlined, size: 18, color: Color(0xFF818CF8)),
+              Icon(Icons.forum_outlined, size: 18, color: c.accTx),
               const SizedBox(width: 8),
               Text(
-                'Tartışma',
-                style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                _roomName != null && _roomName!.isNotEmpty ? 'Tartışma · $_roomName' : 'Tartışma',
+                style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           const SizedBox(height: 12),
           if (_isLoading)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(color: Color(0xFF6366F1))))
+            Center(child: Padding(padding: const EdgeInsets.all(16), child: CircularProgressIndicator(color: c.acc)))
           else if (_error.isNotEmpty)
-            Text(_error, style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 12))
+            Text(_error, style: GoogleFonts.schibstedGrotesk(color: Colors.redAccent, fontSize: 12))
           else ...[
             if (_messages.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(
                   'Henüz mesaj yok. Ekiple bu versiyon hakkında konuşmaya başlayın.',
-                  style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 12),
+                  style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 12),
                 ),
               )
             else
@@ -181,21 +187,21 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: c.surf2,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF334155)),
+                            border: Border.all(color: c.bord),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 (m['nickname'] as String?)?.isNotEmpty == true ? m['nickname'] as String : 'Kullanıcı',
-                                style: GoogleFonts.inter(color: const Color(0xFF818CF8), fontSize: 11, fontWeight: FontWeight.w700),
+                                style: GoogleFonts.schibstedGrotesk(color: c.accTx, fontSize: 11, fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 m['text'] as String? ?? '',
-                                style: GoogleFonts.inter(color: const Color(0xFFE2E8F0), fontSize: 13),
+                                style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13),
                               ),
                             ],
                           ),
@@ -212,15 +218,15 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                 Expanded(
                   child: TextField(
                     controller: _messageController,
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                    style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13),
                     minLines: 1,
                     maxLines: 3,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
                       hintText: 'Bir mesaj yazın...',
-                      hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
+                      hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                       filled: true,
-                      fillColor: const Color(0xFF0F172A),
+                      fillColor: c.surf2,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
@@ -230,8 +236,8 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                 IconButton(
                   onPressed: _isPosting ? null : _sendMessage,
                   icon: _isPosting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA5B4FC)))
-                      : const Icon(Icons.send_rounded, color: Color(0xFFA5B4FC)),
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: c.accTx))
+                      : Icon(Icons.send_rounded, color: c.accTx),
                 ),
               ],
             ),
@@ -242,12 +248,12 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                 child: OutlinedButton.icon(
                   onPressed: (_messages.isEmpty || _isSummarizing) ? null : _summarize,
                   icon: _isSummarizing
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA5B4FC)))
+                      ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accTx))
                       : const Icon(Icons.auto_awesome_rounded, size: 16),
                   label: const Text('Tartışmayı Özetle ve Yeni Versiyon Üret'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFA5B4FC),
-                    side: const BorderSide(color: Color(0xFF4338CA)),
+                    foregroundColor: c.accTx,
+                    side: BorderSide(color: c.bord),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

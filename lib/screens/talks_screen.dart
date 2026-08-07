@@ -5,28 +5,34 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'create_talk_dialog.dart';
 import 'talk_detail_screen.dart';
+
+const _filterNames = ['Tümü', 'Hazır', 'Üretiliyor', 'Paylaşımlı'];
 
 class TalksScreen extends StatefulWidget {
   const TalksScreen({super.key});
 
   @override
-  State<TalksScreen> createState() => _TalksScreenState();
+  State<TalksScreen> createState() => TalksScreenState();
 }
 
-class _TalksScreenState extends State<TalksScreen> {
+class TalksScreenState extends State<TalksScreen> {
   List<dynamic> _talks = [];
   bool _isLoading = true;
   String _error = '';
   Timer? _pollTimer;
+  String _filter = 'Tümü';
+  String _search = '';
 
-  void _openCreateTalkDialog() {
+  /// Public so the app shell (sidebar button / mobile FAB) can trigger it.
+  void openCreateTalkDialog() {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'CreateTalkDialog',
-      barrierColor: Colors.black.withOpacity(0.65),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       transitionDuration: const Duration(milliseconds: 320),
       pageBuilder: (context, anim1, anim2) => const CreateTalkDialog(),
       transitionBuilder: (context, anim1, anim2, child) {
@@ -111,28 +117,29 @@ class _TalksScreenState extends State<TalksScreen> {
 
   Future<void> _deleteTalk(int id, String topic) async {
     final lang = Provider.of<AuthProvider>(context, listen: false).language;
+    final c = context.colors;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: c.surf,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: BorderSide(color: c.bord),
         ),
         title: Text(
           AppTranslations.tr('delete', lang),
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold, color: c.tx),
         ),
         content: Text(
           AppTranslations.tr('confirm_delete', lang),
-          style: GoogleFonts.inter(color: const Color(0xFFCBD5E1)),
+          style: GoogleFonts.schibstedGrotesk(color: c.tx2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               AppTranslations.tr('cancel', lang),
-              style: GoogleFonts.inter(color: const Color(0xFF94A3B8)),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx3),
             ),
           ),
           ElevatedButton.icon(
@@ -140,10 +147,10 @@ class _TalksScreenState extends State<TalksScreen> {
             icon: const Icon(Icons.delete_outline, size: 18),
             label: Text(
               AppTranslations.tr('delete', lang),
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+              style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.failed,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -167,11 +174,11 @@ class _TalksScreenState extends State<TalksScreen> {
                   const SizedBox(width: 8),
                   Text(
                     AppTranslations.tr('success', lang),
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                    style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: AppColors.completed,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -194,29 +201,97 @@ class _TalksScreenState extends State<TalksScreen> {
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'completed':
-        return const Color(0xFF10B981);
-      case 'processing':
-        return const Color(0xFF3B82F6);
-      case 'failed':
-        return const Color(0xFFEF4444);
-      default:
-        return const Color(0xFFF59E0B);
+  /// Re-submits a failed talk with its original parameters.
+  Future<void> _retryTalk(Map<String, dynamic> talk) async {
+    try {
+      await ApiService.createTalkRequest(
+        mode: 'new',
+        language: talk['language'] as String?,
+        place: talk['place'] as String?,
+        topic: talk['topic'] as String?,
+        speechType: talk['speech_type'] as String?,
+        customSpeechType: talk['custom_speech_type'] as String?,
+        duration: talk['duration'] as int?,
+      );
+      _fetchTalks();
+    } catch (e) {
+      if (mounted) {
+        final lang = Provider.of<AuthProvider>(context, listen: false).language;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppTranslations.tr('error', lang)}: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
-  String _getStatusText(String status, String lang) {
+  Color _statusColor(String status) {
     switch (status) {
       case 'completed':
-        return AppTranslations.tr('status_completed', lang);
+        return AppColors.completed;
       case 'processing':
-        return AppTranslations.tr('status_generating', lang);
+        return AppColors.processing;
       case 'failed':
-        return AppTranslations.tr('status_failed', lang);
+        return AppColors.failed;
       default:
-        return AppTranslations.tr('status_pending', lang);
+        return AppColors.pending;
+    }
+  }
+
+  int _countVersions(Map<String, dynamic> node) {
+    int count = 1;
+    final children = node['children'] as List<dynamic>?;
+    if (children != null) {
+      for (final child in children) {
+        count += _countVersions(child as Map<String, dynamic>);
+      }
+    }
+    return count;
+  }
+
+  String _buildMeta(Map<String, dynamic> talk, String lang) {
+    final typeLabel = AppTranslations.translateSpeechType(talk['speech_type'], lang);
+    final place = talk['place'] as String? ?? '';
+    final duration = talk['duration'] ?? 0;
+    final status = talk['status'] as String? ?? '';
+    final parts = <String>[
+      if (typeLabel.isNotEmpty) typeLabel,
+      if (place.isNotEmpty) place,
+      '$duration dk',
+    ];
+    switch (status) {
+      case 'completed':
+        parts.add('${_countVersions(talk)} sürüm');
+        break;
+      case 'processing':
+        parts.add('üretiliyor…');
+        break;
+      case 'pending':
+        parts.add('sırada');
+        break;
+      case 'failed':
+        parts.add('başarısız');
+        break;
+    }
+    return parts.join(' · ');
+  }
+
+  bool _matchesFilter(Map<String, dynamic> t) {
+    final status = t['status'] as String? ?? '';
+    final shared = t['room_id'] != null;
+    switch (_filter) {
+      case 'Hazır':
+        return status == 'completed';
+      case 'Üretiliyor':
+        return status == 'processing' || status == 'pending';
+      case 'Paylaşımlı':
+        return shared;
+      default:
+        return true;
     }
   }
 
@@ -224,350 +299,302 @@ class _TalksScreenState extends State<TalksScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
+    final c = context.colors;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF131C31), Color(0xFF1A1D36)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A).withOpacity(0.8),
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          title: Row(
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator(color: c.acc));
+    }
+
+    if (_error.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.record_voice_over_rounded, color: Color(0xFF818CF8), size: 20),
-              ),
-              const SizedBox(width: 12),
+              const Icon(Icons.error_outline_rounded, size: 56, color: AppColors.dangerTx),
+              const SizedBox(height: 16),
               Text(
-                AppTranslations.tr('my_talks', lang),
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 19,
+                _error,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.schibstedGrotesk(color: c.tx2, fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _fetchTalks,
+                icon: const Icon(Icons.refresh),
+                label: Text(AppTranslations.tr('refresh', lang)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: c.acc,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              onPressed: _fetchTalks,
-              icon: const Icon(Icons.refresh_rounded, color: Color(0xFFCBD5E1)),
-              tooltip: AppTranslations.tr('refresh', lang),
+        ),
+      );
+    }
+
+    if (_talks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: c.surf,
+                shape: BoxShape.circle,
+                border: Border.all(color: c.bord),
+              ),
+              child: Icon(Icons.mic_none_outlined, size: 56, color: c.accTx),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(height: 20),
+            Text(
+              AppTranslations.tr('no_talks', lang),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppTranslations.tr('talks_subtitle', lang),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: openCreateTalkDialog,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(AppTranslations.tr('new_talk', lang)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: c.acc,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
           ],
         ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF6366F1)),
-              )
-            : _error.isNotEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+      );
+    }
+
+    final filtered = _talks.cast<Map<String, dynamic>>().where(_matchesFilter).where((t) {
+      if (_search.trim().isEmpty) return true;
+      final q = _search.trim().toLowerCase();
+      final topic = (t['topic'] as String? ?? '').toLowerCase();
+      final meta = _buildMeta(t, lang).toLowerCase();
+      return topic.contains(q) || meta.contains(q);
+    }).toList();
+
+    return SingleChildScrollView(
+      padding: isMobile
+          ? const EdgeInsets.fromLTRB(16, 20, 16, 32)
+          : const EdgeInsets.fromLTRB(36, 30, 36, 48),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  Text(
+                    AppTranslations.tr('my_talks', lang),
+                    style: GoogleFonts.schibstedGrotesk(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: c.tx,
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 180, maxWidth: 240),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: c.surf,
+                        border: Border.all(color: c.bord),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFF87171)),
-                          const SizedBox(height: 16),
-                          Text(
-                            _error,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 14),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: _fetchTalks,
-                            icon: const Icon(Icons.refresh),
-                            label: Text(AppTranslations.tr('refresh', lang)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6366F1),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          Icon(Icons.search, size: 17, color: c.tx3),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              onChanged: (v) => setState(() => _search = v),
+                              style: GoogleFonts.schibstedGrotesk(fontSize: 13, color: c.tx),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                hintText: 'Konuşma ara...',
+                                hintStyle: GoogleFonts.schibstedGrotesk(fontSize: 13, color: c.tx3),
+                              ),
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),
-                  )
-                : _talks.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B).withOpacity(0.6),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF334155), width: 1),
-                              ),
-                              child: const Icon(
-                                Icons.mic_none_outlined,
-                                size: 56,
-                                color: Color(0xFF818CF8),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              AppTranslations.tr('no_talks', lang),
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFE2E8F0),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              AppTranslations.tr('talks_subtitle', lang),
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF94A3B8),
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: _openCreateTalkDialog,
-                              icon: const Icon(Icons.add_rounded),
-                              label: Text(AppTranslations.tr('new_talk', lang)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6366F1),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                                elevation: 4,
-                                shadowColor: const Color(0xFF6366F1).withOpacity(0.4),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              ),
-                            ),
-                          ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _filterNames.map((f) {
+                  final active = _filter == f;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(99),
+                    onTap: () => setState(() => _filter = f),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: active ? c.acc : c.surf,
+                        borderRadius: BorderRadius.circular(99),
+                        border: active ? null : Border.all(color: c.bord),
+                      ),
+                      child: Text(
+                        f,
+                        style: GoogleFonts.schibstedGrotesk(
+                          fontSize: 12,
+                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                          color: active ? Colors.white : c.tx2,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                decoration: BoxDecoration(
+                  color: c.surf,
+                  border: Border.all(color: c.bordSoft),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: filtered.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(36.0),
+                        child: Center(
+                          child: Text(
+                            'Aramanızla eşleşen konuşma yok.',
+                            style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
+                          ),
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        itemCount: _talks.length,
-                        itemBuilder: (context, index) {
-                          final talk = _talks[index];
-                          final int id = talk['id'] as int;
-                          final status = talk['status'] as String;
-                          final statusColor = _getStatusColor(status);
+                    : Column(
+                        children: filtered.map((talk) {
+                          final id = talk['id'] as int;
+                          final status = talk['status'] as String? ?? '';
+                          final statusColor = _statusColor(status);
                           final topic = talk['topic'] as String? ?? 'Konuşma Hazırlığı';
                           final isShared = talk['room_id'] != null;
+                          final isFailed = status == 'failed';
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B).withOpacity(0.75),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: const Color(0xFF334155).withOpacity(0.6),
-                                width: 1,
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => TalkDetailScreen(talkNode: talk)),
+                              ).then((_) => _fetchTalks());
+                            },
+                            onLongPress: () => _deleteTalk(id, topic),
+                            hoverColor: c.accSoft.withValues(alpha: 0.5),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                border: Border(bottom: BorderSide(color: c.bordSoft)),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => TalkDetailScreen(talkNode: talk),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: statusColor,
+                                      shape: BoxShape.circle,
+                                      boxShadow: status == 'processing'
+                                          ? [BoxShadow(color: statusColor, blurRadius: 8)]
+                                          : null,
                                     ),
-                                  ).then((_) => _fetchTalks());
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(18.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF4338CA).withOpacity(0.3),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.4)),
-                                            ),
-                                            child: Text(
-                                              AppTranslations.translateSpeechType(talk['speech_type'], lang),
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFA5B4FC),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          topic,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.schibstedGrotesk(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: c.tx,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                            decoration: BoxDecoration(
-                                              color: statusColor.withOpacity(0.12),
-                                              borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(color: statusColor.withOpacity(0.35)),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Container(
-                                                  width: 6,
-                                                  height: 6,
-                                                  decoration: BoxDecoration(
-                                                    color: statusColor,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  _getStatusText(status, lang),
-                                                  style: GoogleFonts.inter(
-                                                    color: statusColor,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (isShared) ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF059669).withOpacity(0.15),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(color: const Color(0xFF34D399).withOpacity(0.4)),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Icon(Icons.groups_rounded, size: 11, color: Color(0xFF34D399)),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    'Paylaşımlı',
-                                                    style: GoogleFonts.inter(
-                                                      color: const Color(0xFF34D399),
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                          const Spacer(),
-                                          Material(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () => _deleteTalk(id, topic),
-                                              borderRadius: BorderRadius.circular(10),
-                                              child: Container(
-                                                padding: const EdgeInsets.all(6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.withOpacity(0.08),
-                                                  borderRadius: BorderRadius.circular(10),
-                                                ),
-                                                child: const Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  size: 18,
-                                                  color: Color(0xFFF87171),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          _buildMeta(talk, lang),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isShared) ...[
+                                    const SizedBox(width: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.sharedBadgeBg,
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      const SizedBox(height: 14),
-                                      Text(
-                                        topic,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          height: 1.3,
+                                      child: Text(
+                                        'Paylaşımlı',
+                                        style: GoogleFonts.schibstedGrotesk(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.sharedBadgeTx,
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      const Divider(color: Color(0xFF334155), height: 1, thickness: 0.8),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.location_on_outlined, size: 15, color: Color(0xFFF59E0B)),
-                                          const SizedBox(width: 4),
-                                          Flexible(
-                                            child: Text(
-                                              talk['place'] ?? '',
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFCBD5E1),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 14),
-                                          const Icon(Icons.timer_outlined, size: 15, color: Color(0xFF38BDF8)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${talk['duration'] ?? 0} ${AppTranslations.tr("minutes", lang)}',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFCBD5E1),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 14),
-                                          const Icon(Icons.language_outlined, size: 15, color: Color(0xFF34D399)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            AppTranslations.translateLanguageName(talk['language'], lang),
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFCBD5E1),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
+                                    ),
+                                  ],
+                                  if (isFailed) ...[
+                                    const SizedBox(width: 10),
+                                    OutlinedButton(
+                                      onPressed: () => _retryTalk(talk),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: c.tx2,
+                                        side: BorderSide(color: c.bord),
+                                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+                                        minimumSize: Size.zero,
                                       ),
-                                    ],
-                                  ),
-                                ),
+                                      child: Text(
+                                        'Yeniden Dene',
+                                        style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                                ],
                               ),
                             ),
                           );
-                        },
+                        }).toList(),
                       ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _openCreateTalkDialog,
-          backgroundColor: const Color(0xFF6366F1),
-          foregroundColor: Colors.white,
-          elevation: 6,
-          icon: const Icon(Icons.add_rounded),
-          label: Text(
-            AppTranslations.tr('new_talk', lang),
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
           ),
         ),
       ),

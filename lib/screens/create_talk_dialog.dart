@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'talk_detail_screen.dart';
 
 class CreateTalkDialog extends StatefulWidget {
@@ -186,90 +187,93 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
     }
   }
 
+  Widget _fieldLabel(String text, AppColors c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(text, style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx2)),
+    );
+  }
+
+  InputDecoration _flatDecoration(String hint, AppColors c) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13.5),
+      filled: true,
+      fillColor: c.surf2,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(11),
+        borderSide: BorderSide(color: c.bord),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(11),
+        borderSide: BorderSide(color: c.acc),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(11),
+        borderSide: const BorderSide(color: AppColors.failed),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
+    final c = context.colors;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 840),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 840),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFF334155), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.55),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          color: c.surf,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: c.bord),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 50, offset: const Offset(0, 20))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Popup Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 16, 16),
+              padding: const EdgeInsets.fromLTRB(24, 20, 16, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: Color(0xFF818CF8),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        AppTranslations.tr('create_talk_title', lang),
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    AppTranslations.tr('create_talk_title', lang),
+                    style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w700, color: c.tx, fontSize: 18, letterSpacing: -0.2),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () => Navigator.pop(context),
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6.0),
+                      child: Icon(Icons.close, color: c.tx3, size: 22),
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(color: Color(0xFF334155), height: 1),
-
-            // Dialog Content
             Flexible(
               child: _isLoading
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const CircularProgressIndicator(color: Color(0xFF6366F1)),
+                          CircularProgressIndicator(color: c.acc),
                           const SizedBox(height: 24),
                           Text(
                             AppTranslations.tr('generating_loader', lang),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                            style: GoogleFonts.schibstedGrotesk(color: c.tx2, fontSize: 15),
                           )
                         ],
                       ),
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(24.0),
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -279,258 +283,172 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.15),
+                                  color: AppColors.failed.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                                  border: Border.all(color: AppColors.failed.withValues(alpha: 0.3)),
                                 ),
                                 child: Text(
                                   _errorMessage,
-                                  style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
+                                  style: GoogleFonts.schibstedGrotesk(color: AppColors.dangerTx, fontSize: 13),
                                 ),
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 18),
                             ],
 
-                            // 1 & 2. Speech Type & Language Dropdowns
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                if (constraints.maxWidth > 450) {
-                                  return Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(child: _buildSpeechTypeDropdown(lang)),
-                                      const SizedBox(width: 16),
-                                      Expanded(child: _buildLanguageDropdown(lang)),
-                                    ],
-                                  );
-                                } else {
-                                  return Column(
-                                    children: [
-                                      _buildSpeechTypeDropdown(lang),
-                                      const SizedBox(height: 16),
-                                      _buildLanguageDropdown(lang),
-                                    ],
-                                  );
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 20),
+                            // Konuşma amacı — chip grid
+                            _fieldLabel(AppTranslations.tr('speech_purpose', lang), c),
+                            _loadingTalkTypes
+                                ? SizedBox(
+                                    height: 34,
+                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: c.acc)),
+                                  )
+                                : Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: _talkTypeItems.map((item) {
+                                      final title = item['title'] ?? item['key'];
+                                      final symbol = item['symbol'] ?? '💬';
+                                      final isSel = _selectedTalkType?['key'] == item['key'];
+                                      return InkWell(
+                                        borderRadius: BorderRadius.circular(99),
+                                        onTap: () => setState(() => _selectedTalkType = item),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSel ? c.accSoft : c.surf2,
+                                            borderRadius: BorderRadius.circular(99),
+                                            border: Border.all(color: isSel ? c.acc : c.bord),
+                                          ),
+                                          child: Text(
+                                            '$symbol $title',
+                                            style: GoogleFonts.schibstedGrotesk(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: isSel ? c.accTx : c.tx2,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                            const SizedBox(height: 18),
 
-                            // Dynamic Custom Speech Purpose Text Field (if "Other" / is_custom is selected)
                             if (_isCustomSelected) ...[
+                              _fieldLabel(AppTranslations.tr('custom_speech_purpose', lang), c),
                               TextFormField(
                                 key: _customSpeechTypeKey,
                                 focusNode: _customSpeechTypeFocusNode,
                                 controller: _customSpeechTypeController,
-                                style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                                decoration: InputDecoration(
-                                  labelText: AppTranslations.tr('custom_speech_purpose', lang),
-                                  labelStyle: const TextStyle(color: Color(0xFF818CF8)),
-                                  prefixIcon: const Icon(Icons.edit_note_rounded, color: Color(0xFF818CF8)),
-                                  hintText: AppTranslations.tr('custom_speech_purpose_hint', lang),
-                                  hintStyle: const TextStyle(color: Color(0xFF475569)),
-                                  filled: true,
-                                  fillColor: const Color(0xFF1E293B),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.2),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFF818CF8), width: 2.0),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Colors.redAccent),
-                                  ),
-                                  focusedErrorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
-                                  ),
-                                ),
+                                style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5),
+                                decoration: _flatDecoration(AppTranslations.tr('custom_speech_purpose_hint', lang), c),
                                 validator: (value) =>
                                     _isCustomSelected && (value == null || value.trim().isEmpty)
                                         ? AppTranslations.tr('custom_speech_purpose_required', lang)
                                         : null,
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 18),
                             ],
 
-                            // 3. Place Text Field
+                            // Dil + Süre — 2 columns
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final narrow = constraints.maxWidth < 420;
+                                final langCol = Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _fieldLabel(AppTranslations.tr('speech_lang', lang), c),
+                                      _buildLanguageDropdown(lang, c),
+                                    ],
+                                  ),
+                                );
+                                final durationCol = Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _fieldLabel(
+                                        '${AppTranslations.tr('speech_duration', lang)} · ${_durationMinutes.toInt()} ${AppTranslations.tr('minutes', lang)}',
+                                        c,
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                        decoration: BoxDecoration(
+                                          color: c.surf2,
+                                          border: Border.all(color: c.bord),
+                                          borderRadius: BorderRadius.circular(11),
+                                        ),
+                                        child: SliderTheme(
+                                          data: SliderTheme.of(context).copyWith(
+                                            activeTrackColor: c.acc,
+                                            inactiveTrackColor: c.bord,
+                                            thumbColor: c.acc,
+                                            overlayColor: c.acc.withValues(alpha: 0.2),
+                                          ),
+                                          child: Slider(
+                                            value: _durationMinutes,
+                                            min: 1.0,
+                                            max: 30.0,
+                                            divisions: 29,
+                                            onChanged: (val) => setState(() => _durationMinutes = val),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (narrow) {
+                                  return Column(children: [langCol, const SizedBox(height: 16), durationCol]);
+                                }
+                                return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [langCol, const SizedBox(width: 12), durationCol]);
+                              },
+                            ),
+                            const SizedBox(height: 18),
+
+                            _fieldLabel(AppTranslations.tr('speech_place', lang), c),
                             TextFormField(
                               key: _placeKey,
                               focusNode: _placeFocusNode,
                               controller: _placeController,
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.tr('speech_place', lang),
-                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                                prefixIcon: const Icon(Icons.place_outlined, color: Color(0xFFF59E0B)),
-                                hintText: AppTranslations.tr('speech_place_hint', lang),
-                                hintStyle: const TextStyle(color: Color(0xFF475569)),
-                                filled: true,
-                                fillColor: const Color(0xFF1E293B),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF334155)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Colors.redAccent),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
-                                ),
-                              ),
+                              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5),
+                              decoration: _flatDecoration(AppTranslations.tr('speech_place_hint', lang), c),
                               validator: (value) =>
                                   value == null || value.trim().isEmpty ? AppTranslations.tr('speech_place_required', lang) : null,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 18),
 
-                            // 4. Duration Slider Card
-                            Card(
-                              color: const Color(0xFF1E293B),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(color: Color(0xFF334155)),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.timer_outlined, color: Color(0xFF38BDF8), size: 18),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              AppTranslations.tr('speech_duration', lang),
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF6366F1),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            '${_durationMinutes.toInt()} ${AppTranslations.tr('minutes', lang)}',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    SliderTheme(
-                                      data: SliderTheme.of(context).copyWith(
-                                        activeTrackColor: const Color(0xFF6366F1),
-                                        inactiveTrackColor: const Color(0xFF334155),
-                                        thumbColor: const Color(0xFF6366F1),
-                                        overlayColor: const Color(0xFF6366F1).withOpacity(0.2),
-                                      ),
-                                      child: Slider(
-                                        value: _durationMinutes,
-                                        min: 1.0,
-                                        max: 30.0,
-                                        divisions: 29,
-                                        onChanged: (val) {
-                                          setState(() {
-                                            _durationMinutes = val;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                    Text(
-                                      '${AppTranslations.tr('avg_word_count', lang)}: ~${_durationMinutes.toInt() * 130} ${AppTranslations.tr('words', lang)}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF64748B),
-                                        fontSize: 11,
-                                      ),
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // 5. Topic Text Field
+                            _fieldLabel(AppTranslations.tr('speech_topic', lang), c),
                             TextFormField(
                               key: _topicKey,
                               focusNode: _topicFocusNode,
                               controller: _topicController,
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5),
                               maxLines: 5,
-                              decoration: InputDecoration(
-                                labelText: AppTranslations.tr('speech_topic', lang),
-                                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                                alignLabelWithHint: true,
-                                prefixIcon: const Padding(
-                                  padding: EdgeInsets.only(bottom: 80.0),
-                                  child: Icon(Icons.edit_note_outlined, color: Color(0xFFF43F5E)),
-                                ),
-                                hintText: AppTranslations.tr('speech_topic_hint', lang),
-                                hintStyle: const TextStyle(color: Color(0xFF475569)),
-                                filled: true,
-                                fillColor: const Color(0xFF1E293B),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF334155)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Colors.redAccent),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
-                                ),
-                              ),
+                              minLines: 4,
+                              onChanged: (_) => setState(() {}),
+                              decoration: _flatDecoration(AppTranslations.tr('speech_topic_hint', lang), c),
                               validator: (value) =>
                                   value == null || value.trim().isEmpty ? AppTranslations.tr('speech_topic_required', lang) : null,
                             ),
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${AppTranslations.tr('avg_word_count', lang)}: ~${_durationMinutes.toInt() * 130} ${AppTranslations.tr('words', lang)}',
+                              style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 11),
+                            ),
+                            const SizedBox(height: 22),
 
-                            // Submit Button
-                            ElevatedButton(
+                            ElevatedButton.icon(
                               onPressed: _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6366F1),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Text(
+                              icon: const Icon(Icons.auto_awesome_rounded, size: 17),
+                              label: Text(
                                 AppTranslations.tr('generate_talk_button', lang),
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: GoogleFonts.schibstedGrotesk(fontSize: 14.5, fontWeight: FontWeight.w700),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: c.acc,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
                               ),
                             ),
                           ],
@@ -544,145 +462,22 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
     );
   }
 
-  Widget _buildSpeechTypeDropdown(String lang) {
-    if (_loadingTalkTypes) {
-      return Container(
-        height: 50,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF334155)),
-        ),
-        child: const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(color: Color(0xFF818CF8), strokeWidth: 2.2),
-        ),
-      );
-    }
-
-    return DropdownButtonFormField<Map<String, dynamic>>(
-      value: _selectedTalkType,
-      isExpanded: true,
-      borderRadius: BorderRadius.circular(14),
-      dropdownColor: const Color(0xFF1E293B),
-      menuMaxHeight: 480,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF818CF8)),
-      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: AppTranslations.tr('speech_purpose', lang),
-        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-        prefixIcon: const Icon(Icons.campaign_outlined, color: Color(0xFF818CF8), size: 20),
-        filled: true,
-        fillColor: const Color(0xFF1E293B),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-        ),
-      ),
-      selectedItemBuilder: (context) {
-        return _talkTypeItems.map((item) {
-          final title = item['title'] ?? item['key'];
-          final symbol = item['symbol'] ?? '💬';
-          return Row(
-            children: [
-              Text(symbol, style: const TextStyle(fontSize: 15)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          );
-        }).toList();
-      },
-      items: _talkTypeItems.map((item) {
-        final title = item['title'] ?? item['key'];
-        final symbol = item['symbol'] ?? '💬';
-        final isSel = _selectedTalkType?['key'] == item['key'];
-
-        return DropdownMenuItem<Map<String, dynamic>>(
-          value: item,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: isSel
-                      ? const Color(0xFF6366F1).withOpacity(0.25)
-                      : const Color(0xFF0F172A).withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isSel ? const Color(0xFF818CF8) : const Color(0xFF334155).withOpacity(0.6),
-                  ),
-                ),
-                child: Text(symbol, style: const TextStyle(fontSize: 14)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: isSel ? Colors.white : const Color(0xFFCBD5E1),
-                    fontSize: 13,
-                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-              if (isSel)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF818CF8),
-                  size: 16,
-                ),
-            ],
-          ),
-        );
-      }).toList(),
-      onChanged: (val) {
-        if (val != null) {
-          setState(() {
-            _selectedTalkType = val;
-          });
-        }
-      },
-    );
-  }
-
-  Widget _buildLanguageDropdown(String lang) {
+  Widget _buildLanguageDropdown(String lang, AppColors c) {
     return DropdownButtonFormField<String>(
       value: _selectedLanguage,
       isExpanded: true,
       borderRadius: BorderRadius.circular(14),
-      dropdownColor: const Color(0xFF1E293B),
-      menuMaxHeight: 480,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF34D399)),
-      style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+      dropdownColor: c.surf,
+      menuMaxHeight: 420,
+      icon: Icon(Icons.keyboard_arrow_down_rounded, color: c.tx3),
+      style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
-        labelText: AppTranslations.tr('speech_lang', lang),
-        labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-        prefixIcon: const Icon(Icons.language_outlined, color: Color(0xFF34D399), size: 20),
         filled: true,
-        fillColor: const Color(0xFF1E293B),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.8),
-        ),
+        fillColor: c.surf2,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide(color: c.bord)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide(color: c.acc)),
       ),
       selectedItemBuilder: (context) {
         return _languageItems.map((item) {
@@ -694,11 +489,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
               Text(symbol, style: const TextStyle(fontSize: 15)),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  translatedLang,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                ),
+                child: Text(translatedLang, overflow: TextOverflow.ellipsis, style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5, fontWeight: FontWeight.w600)),
               ),
             ],
           );
@@ -714,37 +505,20 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
           value: code,
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: isSel
-                      ? const Color(0xFF059669).withOpacity(0.25)
-                      : const Color(0xFF0F172A).withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isSel ? const Color(0xFF34D399) : const Color(0xFF334155).withOpacity(0.6),
-                  ),
-                ),
-                child: Text(symbol, style: const TextStyle(fontSize: 14)),
-              ),
+              Text(symbol, style: const TextStyle(fontSize: 15)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   translatedLang,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: isSel ? Colors.white : const Color(0xFFCBD5E1),
-                    fontSize: 13,
-                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                  style: GoogleFonts.schibstedGrotesk(
+                    color: isSel ? c.tx : c.tx2,
+                    fontSize: 13.5,
+                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
-              if (isSel)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF34D399),
-                  size: 16,
-                ),
+              if (isSel) Icon(Icons.check_circle_rounded, color: c.accTx, size: 16),
             ],
           ),
         );

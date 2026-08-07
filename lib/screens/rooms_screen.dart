@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'room_detail_screen.dart';
 
 class RoomsScreen extends StatefulWidget {
@@ -47,25 +48,26 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 
   Future<void> _createRoom() async {
+    final c = context.colors;
     final controller = TextEditingController();
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: c.surf,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: BorderSide(color: c.bord),
         ),
-        title: Text('Yeni Oda', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Yeni Oda', style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: Colors.white),
+          style: GoogleFonts.schibstedGrotesk(color: c.tx),
           decoration: InputDecoration(
             hintText: 'Oda adı (örn. Pazarlama Ekibi)',
-            hintStyle: const TextStyle(color: Color(0xFF64748B)),
+            hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3),
             filled: true,
-            fillColor: const Color(0xFF0F172A),
+            fillColor: c.surf2,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
           onSubmitted: (v) => Navigator.pop(context, v),
@@ -73,12 +75,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal', style: TextStyle(color: Color(0xFF94A3B8))),
+            child: Text('İptal', style: GoogleFonts.schibstedGrotesk(color: c.tx3)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1)),
-            child: const Text('Oluştur', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: c.acc),
+            child: Text('Oluştur', style: GoogleFonts.schibstedGrotesk(color: Colors.white)),
           ),
         ],
       ),
@@ -101,140 +103,156 @@ class _RoomsScreenState extends State<RoomsScreen> {
   @override
   Widget build(BuildContext context) {
     Provider.of<AuthProvider>(context); // rebuild on language/auth change
+    final c = context.colors;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        elevation: 0,
-        title: Text('Odalar', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
-        actions: [
-          IconButton(
-            onPressed: _createRoom,
-            icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-            tooltip: 'Yeni oda',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-            : _error.isNotEmpty
-                ? Center(
-                    child: Text(_error, style: GoogleFonts.inter(color: Colors.redAccent)),
-                  )
-                : _rooms.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator(color: c.acc));
+    }
+    if (_error.isNotEmpty) {
+      return Center(child: Text(_error, style: GoogleFonts.schibstedGrotesk(color: AppColors.dangerTx)));
+    }
+
+    return SingleChildScrollView(
+      padding: isMobile
+          ? const EdgeInsets.fromLTRB(16, 20, 16, 32)
+          : const EdgeInsets.fromLTRB(36, 30, 36, 48),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Odalar',
+                    style: GoogleFonts.schibstedGrotesk(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                      color: c.tx,
+                    ),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: _createRoom,
+                    icon: const Icon(Icons.add, size: 17),
+                    label: Text('Yeni Oda', style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: c.accTx,
+                      side: BorderSide(color: c.bord),
+                      backgroundColor: c.surf,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (_rooms.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(36),
+                  decoration: BoxDecoration(
+                    color: c.surf,
+                    border: Border.all(color: c.bordSoft),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.groups_outlined, size: 48, color: c.tx3),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Henüz bir odanız yok',
+                        style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ekip arkadaşlarınızla konuşma metinlerini birlikte yönetmek için bir oda oluşturun.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    color: c.surf,
+                    border: Border.all(color: c.bordSoft),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: _rooms.map((room) {
+                      final role = room['role'] as String? ?? 'reader';
+                      final isWriter = role == 'writer';
+                      final memberCount = room['member_count'] ?? 0;
+                      final talkCount = room['talk_count'] ?? 0;
+                      return InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => RoomDetailScreen(roomId: room['id'] as int)),
+                          ).then((_) => _fetchRooms());
+                        },
+                        hoverColor: c.accSoft.withValues(alpha: 0.5),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.bordSoft))),
+                          child: Row(
                             children: [
-                              const Icon(Icons.groups_outlined, size: 56, color: Color(0xFF475569)),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Henüz bir odanız yok',
-                                style: GoogleFonts.inter(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(color: c.accSoft, borderRadius: BorderRadius.circular(10)),
+                                child: Icon(Icons.groups_rounded, color: c.accTx, size: 20),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Ekip arkadaşlarınızla konuşma metinlerini birlikte yönetmek için bir oda oluşturun.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
-                              ),
-                              const SizedBox(height: 20),
-                              ElevatedButton.icon(
-                                onPressed: _createRoom,
-                                icon: const Icon(Icons.add, size: 18),
-                                label: const Text('Oda Oluştur'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF6366F1),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      room['name'] as String? ?? '',
+                                      style: GoogleFonts.schibstedGrotesk(fontSize: 15, fontWeight: FontWeight.w600, color: c.tx),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '$memberCount üye · $talkCount konuşma',
+                                      style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx3),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _fetchRooms,
-                        color: const Color(0xFF6366F1),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          itemCount: _rooms.length,
-                          itemBuilder: (context, index) {
-                            final room = _rooms[index];
-                            final role = room['role'] as String? ?? 'reader';
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B).withValues(alpha: 0.75),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.6)),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => RoomDetailScreen(roomId: room['id'] as int),
-                                      ),
-                                    ).then((_) => _fetchRooms());
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: const Icon(Icons.groups_rounded, color: Color(0xFFA5B4FC)),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Text(
-                                            room['name'] as String? ?? '',
-                                            style: GoogleFonts.inter(
-                                              color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: role == 'writer'
-                                                ? const Color(0xFF059669).withValues(alpha: 0.2)
-                                                : const Color(0xFF334155),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            role == 'writer' ? 'Yazar' : 'Görüntüleyici',
-                                            style: GoogleFonts.inter(
-                                              color: role == 'writer' ? const Color(0xFF34D399) : const Color(0xFFCBD5E1),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isWriter ? AppColors.sharedBadgeBg : c.surf2,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: Text(
+                                  isWriter ? 'Yazar' : 'Görüntüleyici',
+                                  style: GoogleFonts.schibstedGrotesk(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isWriter ? c.roleWriterTx : c.tx2,
                                   ),
                                 ),
                               ),
-                            );
-                          },
+                              const SizedBox(width: 8),
+                              Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                            ],
+                          ),
                         ),
-                      ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

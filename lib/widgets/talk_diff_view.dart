@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
+import '../theme/app_theme.dart';
 
 // diff_match_patch 0.4.1 API:
 // - dmp.diff(text1, text2)  → List<Diff>
@@ -79,11 +80,12 @@ class _TalkDiffViewState extends State<TalkDiffView> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: c.surf,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155)),
+        border: Border.all(color: c.bordSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,10 +93,10 @@ class _TalkDiffViewState extends State<TalkDiffView> {
           // Header Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFF0F172A),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(bottom: BorderSide(color: Color(0xFF334155))),
+            decoration: BoxDecoration(
+              color: c.surf2,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: c.bordSoft)),
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -113,9 +115,9 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          'Sürüm #${widget.parentId} ➔ Sürüm #${widget.childId}',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
+                          'Sürüm ${widget.parentId} ➔ Sürüm ${widget.childId}',
+                          style: GoogleFonts.schibstedGrotesk(
+                            color: c.tx,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
@@ -126,21 +128,20 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0x2610B981),
+                            color: AppColors.completed.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: const Color(0xFF10B981).withOpacity(0.4)),
+                                color: AppColors.completed.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.add,
-                                  size: 12, color: Color(0xFF34D399)),
+                              Icon(Icons.add, size: 12, color: AppColors.completed),
                               const SizedBox(width: 2),
                               Text(
                                 '+$_additionsCount kelime',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF34D399),
+                                style: GoogleFonts.schibstedGrotesk(
+                                  color: AppColors.completed,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -153,21 +154,20 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0x26EF4444),
+                            color: AppColors.failed.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: const Color(0xFFEF4444).withOpacity(0.4)),
+                                color: AppColors.failed.withValues(alpha: 0.4)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.remove,
-                                  size: 12, color: Color(0xFFF87171)),
+                              Icon(Icons.remove, size: 12, color: AppColors.failed),
                               const SizedBox(width: 2),
                               Text(
                                 '-$_deletionsCount kelime',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF87171),
+                                style: GoogleFonts.schibstedGrotesk(
+                                  color: AppColors.failed,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -185,9 +185,9 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                       height: 32,
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: c.surf,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF334155)),
+                        border: Border.all(color: c.bord),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -196,11 +196,13 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                             title: 'Bütünleşik',
                             icon: Icons.view_headline_rounded,
                             index: 0,
+                            c: c,
                           ),
                           _buildModeTab(
                             title: 'Yan Yana',
                             icon: Icons.view_column_rounded,
                             index: 1,
+                            c: c,
                           ),
                         ],
                       ),
@@ -214,15 +216,19 @@ class _TalkDiffViewState extends State<TalkDiffView> {
           // Diff Content Body
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: _viewMode == 0 ? _buildInlineDiff() : _buildSideBySideDiff(),
+            child: _viewMode == 0 ? _buildInlineDiff(c) : _buildSideBySideDiff(c),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildModeTab(
-      {required String title, required IconData icon, required int index}) {
+  Widget _buildModeTab({
+    required String title,
+    required IconData icon,
+    required int index,
+    required AppColors c,
+  }) {
     final isActive = _viewMode == index;
     return InkWell(
       onTap: () => setState(() => _viewMode = index),
@@ -231,7 +237,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF6366F1) : Colors.transparent,
+          color: isActive ? c.acc : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
@@ -240,15 +246,15 @@ class _TalkDiffViewState extends State<TalkDiffView> {
             Icon(
               icon,
               size: 14,
-              color: isActive ? Colors.white : const Color(0xFF94A3B8),
+              color: isActive ? Colors.white : c.tx3,
             ),
             const SizedBox(width: 4),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.schibstedGrotesk(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? Colors.white : const Color(0xFF94A3B8),
+                color: isActive ? Colors.white : c.tx3,
               ),
             ),
           ],
@@ -257,7 +263,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
     );
   }
 
-  Widget _buildInlineDiff() {
+  Widget _buildInlineDiff(AppColors c) {
     List<InlineSpan> spans = [];
 
     for (final d in _diffs) {
@@ -265,9 +271,9 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         spans.add(
           TextSpan(
             text: d.text,
-            style: GoogleFonts.roboto(
-              color: const Color(0xFF6EE7B7),
-              backgroundColor: const Color(0x3310B981),
+            style: GoogleFonts.schibstedGrotesk(
+              color: AppColors.completed,
+              backgroundColor: AppColors.completed.withValues(alpha: 0.2),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -276,11 +282,11 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         spans.add(
           TextSpan(
             text: d.text,
-            style: GoogleFonts.roboto(
-              color: const Color(0xFFFCA5A5),
-              backgroundColor: const Color(0x33EF4444),
+            style: GoogleFonts.schibstedGrotesk(
+              color: AppColors.failed,
+              backgroundColor: AppColors.failed.withValues(alpha: 0.2),
               decoration: TextDecoration.lineThrough,
-              decorationColor: const Color(0xFFEF4444),
+              decorationColor: AppColors.failed,
               decorationThickness: 2,
             ),
           ),
@@ -289,7 +295,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         spans.add(
           TextSpan(
             text: d.text,
-            style: GoogleFonts.roboto(color: const Color(0xFFE2E8F0)),
+            style: GoogleFonts.schibstedGrotesk(color: c.tx),
           ),
         );
       }
@@ -301,7 +307,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
     );
   }
 
-  Widget _buildSideBySideDiff() {
+  Widget _buildSideBySideDiff(AppColors c) {
     List<InlineSpan> parentSpans = [];
     List<InlineSpan> childSpans = [];
 
@@ -310,11 +316,11 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         parentSpans.add(
           TextSpan(
             text: d.text,
-            style: GoogleFonts.roboto(
-              color: const Color(0xFFFCA5A5),
-              backgroundColor: const Color(0x33EF4444),
+            style: GoogleFonts.schibstedGrotesk(
+              color: AppColors.failed,
+              backgroundColor: AppColors.failed.withValues(alpha: 0.2),
               decoration: TextDecoration.lineThrough,
-              decorationColor: const Color(0xFFEF4444),
+              decorationColor: AppColors.failed,
             ),
           ),
         );
@@ -322,9 +328,9 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         childSpans.add(
           TextSpan(
             text: d.text,
-            style: GoogleFonts.roboto(
-              color: const Color(0xFF6EE7B7),
-              backgroundColor: const Color(0x3310B981),
+            style: GoogleFonts.schibstedGrotesk(
+              color: AppColors.completed,
+              backgroundColor: AppColors.completed.withValues(alpha: 0.2),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -332,7 +338,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
       } else {
         final span = TextSpan(
           text: d.text,
-          style: GoogleFonts.roboto(color: const Color(0xFFE2E8F0)),
+          style: GoogleFonts.schibstedGrotesk(color: c.tx),
         );
         parentSpans.add(span);
         childSpans.add(span);
@@ -346,29 +352,28 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         final parentWidget = Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: c.surf2,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF334155)),
+            border: Border.all(color: c.bord),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.history,
-                      size: 14, color: Color(0xFF94A3B8)),
+                  Icon(Icons.history, size: 14, color: c.tx3),
                   const SizedBox(width: 6),
                   Text(
-                    'Ebeveyn Sürüm (#${widget.parentId})',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF94A3B8),
+                    'Ebeveyn Sürüm (${widget.parentId})',
+                    style: GoogleFonts.schibstedGrotesk(
+                      color: c.tx3,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-              const Divider(color: Color(0xFF334155), height: 16),
+              Divider(color: c.bord, height: 16),
               SelectableText.rich(
                 TextSpan(children: parentSpans),
                 style: const TextStyle(fontSize: 13, height: 1.6),
@@ -380,29 +385,28 @@ class _TalkDiffViewState extends State<TalkDiffView> {
         final childWidget = Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: c.surf2,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF334155)),
+            border: Border.all(color: c.bord),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.new_releases_outlined,
-                      size: 14, color: Color(0xFF818CF8)),
+                  Icon(Icons.new_releases_outlined, size: 14, color: c.accTx),
                   const SizedBox(width: 6),
                   Text(
-                    'Yeni Sürüm (#${widget.childId})',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF818CF8),
+                    'Yeni Sürüm (${widget.childId})',
+                    style: GoogleFonts.schibstedGrotesk(
+                      color: c.accTx,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-              const Divider(color: Color(0xFF334155), height: 16),
+              Divider(color: c.bord, height: 16),
               SelectableText.rich(
                 TextSpan(children: childSpans),
                 style: const TextStyle(fontSize: 13, height: 1.6),

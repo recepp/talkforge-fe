@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/talk_diff_view.dart';
 import '../widgets/text_selection_toolbar.dart';
 import '../widgets/share_buttons.dart';
@@ -46,8 +47,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   String? _translatedLanguage;
   String? _translatedText;
   bool _viewingTranslation = false;
-  bool _heroExpanded = false;
-  bool _versionsExpanded = false;
 
   bool _isReloading = false;
   bool _isSubmitting = false;
@@ -241,6 +240,26 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return '$versionNum';
   }
 
+  void _selectNode(Map<String, dynamic> node) {
+    setState(() {
+      _selectedNode = node;
+      _viewDiff = false;
+      _translatedLanguage = null;
+      _translatedText = null;
+      _viewingTranslation = false;
+    });
+  }
+
+  String _relativeTime(dynamic raw) {
+    final dt = DateTime.tryParse(raw?.toString() ?? '');
+    if (dt == null) return '';
+    final diff = DateTime.now().toUtc().difference(dt.toUtc());
+    if (diff.inMinutes < 1) return 'şimdi';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
+    if (diff.inHours < 24) return '${diff.inHours} sa önce';
+    if (diff.inDays < 2) return 'dün';
+    return '${diff.inDays} gün önce';
+  }
 
   Future<void> _submitUpdate() async {
     if (_selectedNode == null) return;
@@ -259,13 +278,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         instruction: instruction,
       );
       _instructionController.clear();
-      setState(() {
-        _selectedNode = newRequest;
-        _viewDiff = false;
-        _translatedLanguage = null;
-        _translatedText = null;
-        _viewingTranslation = false;
-      });
+      _selectNode(newRequest);
       await _reloadData();
     } catch (e) {
       if (mounted) {
@@ -305,13 +318,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         instruction: instruction,
         selectedText: selectedText,
       );
-      setState(() {
-        _selectedNode = newRequest;
-        _viewDiff = false;
-        _translatedLanguage = null;
-        _translatedText = null;
-        _viewingTranslation = false;
-      });
+      _selectNode(newRequest);
       await _reloadData();
     } catch (e) {
       if (mounted) {
@@ -364,7 +371,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   bool _isWordChar(String char) {
-    return RegExp(r'[\w\u00C0-\u024F\u1E00-\u1EFF]').hasMatch(char);
+    return RegExp(r'[\wÀ-ɏḀ-ỿ]').hasMatch(char);
   }
 
   Future<void> _submitManualUpdate({
@@ -407,13 +414,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         selectedText: originalSelectedText,
         generatedText: updatedFullText,
       );
-      setState(() {
-        _selectedNode = newRequest;
-        _viewDiff = false;
-        _translatedLanguage = null;
-        _translatedText = null;
-        _viewingTranslation = false;
-      });
+      _selectNode(newRequest);
       await _reloadData();
     } catch (e) {
       if (mounted) {
@@ -449,12 +450,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final options = AppTranslations.supportedLanguages.where((item) => item['code'] != currentLanguage).toList();
 
     if (!mounted || options.isEmpty) return;
+    final c = context.colors;
 
     final target = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: c.surf,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,13 +465,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text(
                 'Hangi dile çevrilsin?',
-                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
             ...options.map((item) => ListTile(
                   leading: Text(item['symbol']!, style: const TextStyle(fontSize: 20)),
-                  title: Text(item['code']!, style: GoogleFonts.inter(color: Colors.white, fontSize: 14)),
-                  onTap: () => Navigator.pop(context, item['code']),
+                  title: Text(item['code']!, style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 14)),
+                  onTap: () => Navigator.pop(sheetContext, item['code']),
                 )),
             const SizedBox(height: 8),
           ],
@@ -526,9 +528,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       final textPainter = TextPainter(
         text: TextSpan(
           text: text,
-          style: GoogleFonts.roboto(
+          style: GoogleFonts.schibstedGrotesk(
             fontSize: 15,
-            height: 1.65,
+            height: 1.8,
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -610,48 +612,51 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       return;
     }
 
+    final c = context.colors;
     final nodeId = node['id'] as int;
     final isRoot = node['parent_id'] == null || nodeId == _talkTree['id'];
     final versionLabel = _getVersionLabel(node);
 
     final titleText = isRoot
-        ? '${AppTranslations.tr('delete_version', lang)} (Root)'
+        ? '${AppTranslations.tr('delete_version', lang)} (Kök)'
         : '${AppTranslations.tr('delete_version', lang)} (#$versionLabel)';
     final contentText = AppTranslations.tr('confirm_delete_version', lang);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: c.surf,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+          side: BorderSide(color: c.bord, width: 1),
         ),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.15),
+                color: AppColors.dangerTx.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.delete_outline, color: Color(0xFFF87171), size: 24),
+              child: Icon(Icons.delete_outline, color: AppColors.dangerTx, size: 24),
             ),
             const SizedBox(width: 12),
-            Text(
-              titleText,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            Expanded(
+              child: Text(
+                titleText,
+                style: GoogleFonts.schibstedGrotesk(
+                  color: c.tx,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
           ],
         ),
         content: Text(
           contentText,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFCBD5E1),
+          style: GoogleFonts.schibstedGrotesk(
+            color: c.tx2,
             fontSize: 14,
             height: 1.4,
           ),
@@ -661,8 +666,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               AppTranslations.tr('cancel', lang),
-              style: GoogleFonts.inter(
-                color: const Color(0xFF94A3B8),
+              style: GoogleFonts.schibstedGrotesk(
+                color: c.tx3,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -672,10 +677,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             icon: const Icon(Icons.delete_forever, size: 18),
             label: Text(
               AppTranslations.tr('delete', lang),
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+              style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppColors.failed,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -718,36 +723,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  Future<void> _deleteCurrentTalk() async {
-    await _deleteVersionNode(_talkTree);
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'completed':
-        return const Color(0xFF10B981);
-      case 'processing':
-        return const Color(0xFF3B82F6);
-      case 'failed':
-        return const Color(0xFFEF4444);
-      default:
-        return const Color(0xFFF59E0B);
-    }
-  }
-
-  String _getStatusText(String status, String lang) {
-    switch (status) {
-      case 'completed':
-        return AppTranslations.tr('status_completed', lang);
-      case 'processing':
-        return AppTranslations.tr('status_generating', lang);
-      case 'failed':
-        return AppTranslations.tr('status_failed', lang);
-      default:
-        return AppTranslations.tr('status_pending', lang);
-    }
-  }
-
   int _countWords(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return 0;
@@ -755,6 +730,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   void _copyToClipboard(String text, String lang) {
+    final c = context.colors;
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -765,14 +741,69 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             const SizedBox(width: 8),
             Text(
               AppTranslations.tr('speech_copied', lang),
-              style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500),
+              style: GoogleFonts.schibstedGrotesk(color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: c.acc,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(milliseconds: 1800),
+      ),
+    );
+  }
+
+  void _openShareSheet(String text) {
+    final c = context.colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: c.surf,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Paylaş', style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 16),
+              ShareButtons(text: text),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _headerIconAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onTap,
+    required AppColors c,
+    bool loading = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.surf,
+              border: Border.all(color: c.bord),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: loading
+                ? SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: c.accTx))
+                : Icon(icon, size: 17, color: c.tx2),
+          ),
+        ),
       ),
     );
   }
@@ -781,6 +812,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
+    final c = context.colors;
     if (_talkTree.isNotEmpty) {
       _assignVersionLabels(_talkTree, '1');
     }
@@ -792,41 +824,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F17),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF161E2E),
-        elevation: 0,
-        title: Text(
-          AppTranslations.tr('versions', lang),
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          if (_isReloading)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF818CF8)),
-              ),
-            )
-          else
-            IconButton(
-              onPressed: _reloadData,
-              tooltip: AppTranslations.tr('refresh', lang),
-              icon: const Icon(Icons.refresh, color: Colors.white),
-            ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      backgroundColor: c.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -836,61 +834,49 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.15),
+                  color: AppColors.dangerTx.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.dangerBord),
                 ),
                 child: Text(
                   _errorMessage,
-                  style: GoogleFonts.inter(color: Colors.redAccent, fontSize: 13),
+                  style: GoogleFonts.schibstedGrotesk(color: AppColors.dangerTx, fontSize: 13),
                 ),
               ),
+            if (_isReloading)
+              LinearProgressIndicator(minHeight: 2, color: c.acc, backgroundColor: Colors.transparent),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final isWide = constraints.maxWidth >= 850;
-                  if (isWide) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 380,
-                            child: SingleChildScrollView(
-                              child: Column(
+                  final isWide = constraints.maxWidth >= 800;
+                  return SingleChildScrollView(
+                    padding: isWide
+                        ? const EdgeInsets.fromLTRB(28, 20, 28, 40)
+                        : const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1100),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildHeader(lang, c),
+                            const SizedBox(height: 18),
+                            if (isWide)
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildHeroHeaderCard(lang),
-                                  const SizedBox(height: 16),
-                                  _buildTreeSection(flatNodes, lang),
+                                  Expanded(child: _buildContentColumn(flatNodes, lang, c, isCompact: false)),
+                                  const SizedBox(width: 20),
+                                  SizedBox(width: 260, child: _buildVersionRail(flatNodes, lang, c)),
                                 ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: _buildActiveNodeWorkspace(lang),
-                            ),
-                          ),
-                        ],
+                              )
+                            else
+                              _buildContentColumn(flatNodes, lang, c, isCompact: true),
+                          ],
+                        ),
                       ),
-                    );
-                  } else {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeroHeaderCard(lang),
-                          const SizedBox(height: 16),
-                          _buildTreeSection(flatNodes, lang),
-                          const SizedBox(height: 20),
-                          _buildActiveNodeWorkspace(lang),
-                        ],
-                      ),
-                    );
-                  }
+                    ),
+                  );
                 },
               ),
             ),
@@ -900,338 +886,245 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  Widget _buildHeroHeaderCard(String lang) {
+  Widget _buildHeader(String lang, AppColors c) {
     final topic = _talkTree['topic'] as String? ?? '';
-    final isLongTopic = topic.length > 160;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E293B), Color(0xFF1E1B4B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3730A3).withOpacity(0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    final metaParts = <String>[
+      AppTranslations.translateSpeechType(_talkTree['speech_type'], lang),
+      (_talkTree['place'] as String?) ?? '',
+      '${_talkTree['duration'] ?? 0} ${AppTranslations.tr('minutes', lang)}',
+      AppTranslations.translateLanguageName(_talkTree['language'], lang),
+    ].where((p) => p.isNotEmpty).toList();
+
+    final isCompleted = _selectedNode?['status'] == 'completed';
+    final text = (_selectedNode?['generated_text'] as String? ?? '').trim();
+    final displayedText = (_viewingTranslation && _translatedText != null) ? _translatedText! : text;
+    final hasText = isCompleted && text.isNotEmpty;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => Navigator.pop(context),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2, right: 4),
+            child: Icon(Icons.arrow_back, size: 22, color: c.tx2),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.4)),
-                ),
-                child: Text(
-                  AppTranslations.translateSpeechType(_talkTree['speech_type'], lang),
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFA5B4FC),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              Text(
+                topic,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.schibstedGrotesk(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: c.tx),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                metaParts.join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx3),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            topic,
-            maxLines: _heroExpanded ? null : 5,
-            overflow: _heroExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              height: 1.3,
-            ),
+        ),
+        if (hasText) ...[
+          _headerIconAction(
+            icon: Icons.content_copy,
+            tooltip: AppTranslations.tr('copy_speech', lang),
+            onTap: () => _copyToClipboard(displayedText, lang),
+            c: c,
           ),
-          if (isLongTopic)
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: InkWell(
-                onTap: () => setState(() => _heroExpanded = !_heroExpanded),
-                borderRadius: BorderRadius.circular(8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _heroExpanded
-                          ? AppTranslations.tr('show_less', lang)
-                          : AppTranslations.tr('show_more', lang),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFA5B4FC),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Icon(
-                      _heroExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                      color: const Color(0xFFA5B4FC),
-                      size: 16,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 14),
-          Wrap(
+          _headerIconAction(
+            icon: Icons.ios_share,
+            tooltip: 'Paylaş',
+            onTap: () => _openShareSheet(displayedText),
+            c: c,
+          ),
+          _headerIconAction(
+            icon: Icons.translate_rounded,
+            tooltip: AppTranslations.tr('translate_button', lang),
+            onTap: _isTranslating ? null : _pickLanguageAndTranslate,
+            loading: _isTranslating,
+            c: c,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVersionPillsRow(List<FlatTreeNode> flatNodes, String lang, AppColors c) {
+    final parentId = _selectedNode?['parent_id'];
+    final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
+    final selHasParent = parentNode != null && _selectedNode?['status'] == 'completed';
+
+    final sorted = List<FlatTreeNode>.from(flatNodes)
+      ..sort((a, b) {
+        final idA = (a.node['id'] as num?)?.toInt() ?? 0;
+        final idB = (b.node['id'] as num?)?.toInt() ?? 0;
+        return idA.compareTo(idB);
+      });
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
             runSpacing: 8,
-            children: [
-              _buildMetaBadge(Icons.location_on_outlined, _talkTree['place'] ?? ''),
-              _buildMetaBadge(Icons.timer_outlined, '${_talkTree['duration'] ?? 0} ${AppTranslations.tr('minutes', lang)}'),
-              _buildMetaBadge(Icons.language_outlined, AppTranslations.translateLanguageName(_talkTree['language'], lang)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetaBadge(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withOpacity(0.6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF334155)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreeSection(List<FlatTreeNode> flatNodes, String lang) {
-    final selectedIndex = _selectedNode == null
-        ? -1
-        : flatNodes.indexWhere((f) => f.node['id'] == _selectedNode!['id']);
-    final visibleNodes = _versionsExpanded || flatNodes.length <= 1
-        ? flatNodes
-        : [flatNodes[selectedIndex >= 0 ? selectedIndex : 0]];
-    final hiddenCount = flatNodes.length - visibleNodes.length;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161E2E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF243044)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.account_tree_outlined, size: 18, color: Color(0xFF818CF8)),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppTranslations.tr('versions', lang),
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF334155),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${flatNodes.length} ${AppTranslations.tr('versions', lang)}',
-                  style: GoogleFonts.inter(color: const Color(0xFFCBD5E1), fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Column(
-            children: visibleNodes.map((flat) {
+            children: sorted.map((flat) {
               final node = flat.node;
-              final status = node['status'] as String;
-              final statusColor = _getStatusColor(status);
               final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
-              final isRoot = node['parent_id'] == null;
-              final indent = (flat.depth * 14.0).clamp(0.0, 42.0);
-
-              return Padding(
-                padding: EdgeInsets.only(left: indent, bottom: 8.0),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedNode = node;
-                      _viewDiff = false;
-                      _translatedLanguage = null;
-                      _translatedText = null;
-                      _viewingTranslation = false;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF312E81) : const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? const Color(0xFF818CF8) : const Color(0xFF1E293B),
-                        width: isSelected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(
-                            isRoot ? Icons.adjust : Icons.subdirectory_arrow_right_rounded,
-                            size: 16,
-                            color: isSelected ? const Color(0xFFA5B4FC) : const Color(0xFF818CF8),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isRoot
-                                    ? '${AppTranslations.tr("version", lang)} #${_getVersionLabel(node)} (Root)'
-                                    : '${AppTranslations.tr("version", lang)} #${_getVersionLabel(node)}',
-                                style: GoogleFonts.inter(
-                                  color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
-                                  fontSize: 13,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                ),
-                              ),
-                              if (!isRoot && node['instruction'] != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  '"${node['instruction']}"',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    color: isSelected ? const Color(0xFFC7D2FE) : const Color(0xFF94A3B8),
-                                    fontSize: 11,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              _getStatusText(status, lang),
-                              style: GoogleFonts.inter(
-                                color: statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (flatNodes.length > 1) ...[
-                              const SizedBox(height: 6),
-                              Tooltip(
-                                message: AppTranslations.tr('delete_version', lang),
-                                child: InkWell(
-                                  onTap: () => _deleteVersionNode(node),
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(4.0),
-                                    child: Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 16,
-                                      color: isSelected ? const Color(0xFFFCA5A5) : const Color(0xFFF87171).withOpacity(0.7),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
+              final label = '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)}';
+              return InkWell(
+                borderRadius: BorderRadius.circular(99),
+                onTap: () => _selectNode(node),
+                onLongPress: () => _deleteVersionNode(node),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSelected ? c.accSoft : c.surf,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: isSelected ? c.acc : c.bord),
+                  ),
+                  child: Text(
+                    label,
+                    style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? c.accTx : c.tx2),
                   ),
                 ),
               );
             }).toList(),
           ),
-          if (hiddenCount > 0 || _versionsExpanded)
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: InkWell(
-                onTap: () => setState(() => _versionsExpanded = !_versionsExpanded),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _versionsExpanded
-                            ? AppTranslations.tr('show_less', lang)
-                            : '${AppTranslations.tr('show_older_versions', lang)} ($hiddenCount)',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFA5B4FC),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+        ),
+        if (selHasParent) ...[
+          const SizedBox(width: 8),
+          InkWell(
+            borderRadius: BorderRadius.circular(99),
+            onTap: () => setState(() => _viewDiff = !_viewDiff),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: _viewDiff ? c.acc : c.surf,
+                borderRadius: BorderRadius.circular(99),
+                border: _viewDiff ? null : Border.all(color: c.bord),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.difference_outlined, size: 14, color: _viewDiff ? Colors.white : c.tx2),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Diff',
+                    style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: _viewDiff ? Colors.white : c.tx2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVersionRail(List<FlatTreeNode> flatNodes, String lang, AppColors c) {
+    final sorted = List<FlatTreeNode>.from(flatNodes)
+      ..sort((a, b) {
+        final idA = (a.node['id'] as num?)?.toInt() ?? 0;
+        final idB = (b.node['id'] as num?)?.toInt() ?? 0;
+        return idB.compareTo(idA);
+      });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'SÜRÜM GEÇMİŞİ',
+            style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: c.tx3),
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...sorted.map((flat) {
+          final node = flat.node;
+          final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
+          final isRoot = node['parent_id'] == null;
+          final title = isRoot
+              ? '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)} · Kök'
+              : '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)}';
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _selectNode(node),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? c.accSoft : c.surf,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isSelected ? c.acc : c.bordSoft),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w700, color: isSelected ? c.tx : c.tx2),
+                          ),
                         ),
-                      ),
-                      Icon(
-                        _versionsExpanded
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        color: const Color(0xFFA5B4FC),
-                        size: 18,
+                        Text(
+                          _relativeTime(node['created_at']),
+                          style: GoogleFonts.schibstedGrotesk(fontSize: 10.5, color: c.tx3),
+                        ),
+                        if (flatNodes.length > 1)
+                          InkWell(
+                            onTap: () => _deleteVersionNode(node),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Icon(Icons.delete_outline_rounded, size: 15, color: c.tx3),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (!isRoot && node['instruction'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '"${node['instruction']}"',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontStyle: FontStyle.italic, color: c.tx3),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),
-        ],
-      ),
+          );
+        }),
+      ],
     );
   }
 
   /// Returns a [TextSpan] where the first occurrence of [highlighted] is styled
-  /// with a purple/indigo background, ensuring selected text remains visually distinct
+  /// with an accent background, ensuring selected text remains visually distinct
   /// even when focus moves to the toolbar popup, without interrupting Flutter's native
   /// text selection handling.
-  TextSpan _buildSelectableTextSpan(String fullText, String highlighted) {
-    final baseStyle = GoogleFonts.roboto(
-      color: Colors.white,
+  TextSpan _buildSelectableTextSpan(String fullText, String highlighted, AppColors c) {
+    final baseStyle = GoogleFonts.schibstedGrotesk(
+      color: c.tx,
       fontSize: 15,
-      height: 1.65,
+      height: 1.8,
     );
 
     if (highlighted.isEmpty) {
@@ -1254,8 +1147,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         TextSpan(
           text: match,
           style: baseStyle.copyWith(
-            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.45),
-            color: const Color(0xFFEEF2FF),
+            backgroundColor: c.acc.withValues(alpha: 0.35),
+            color: c.tx,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1264,165 +1157,26 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  Widget _buildActiveNodeWorkspace(String lang) {
+  Widget _buildContentColumn(List<FlatTreeNode> flatNodes, String lang, AppColors c, {required bool isCompact}) {
     if (_selectedNode == null) return const SizedBox.shrink();
 
     final parentId = _selectedNode!['parent_id'];
     final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
     final isCompleted = _selectedNode!['status'] == 'completed';
     final text = (_selectedNode!['generated_text'] as String? ?? '').trim();
-    final displayedText = (_viewingTranslation && _translatedText != null) ? _translatedText! : text;
     final wordCount = _countWords(text);
-    final readTimeMinutes = (wordCount / 130).ceil();
+    final readTimeMinutes = wordCount == 0 ? 0 : (wordCount / 130).ceil();
     final suggestions = _getQuickSuggestions(lang);
-    final isCompact = MediaQuery.of(context).size.width < 700;
+    final isRootNode = _selectedNode!['parent_id'] == null;
+    final vLabel = _getVersionLabel(_selectedNode!);
+    final captionLeft = _selectedNode!['instruction'] != null
+        ? '${AppTranslations.tr('version', lang).toUpperCase()} $vLabel · "${_selectedNode!['instruction']}"'
+        : (isRootNode ? '${AppTranslations.tr('version', lang).toUpperCase()} $vLabel · KÖK' : '${AppTranslations.tr('version', lang).toUpperCase()} $vLabel');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF161E2E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF243044)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          () {
-                            final isRootNode = _selectedNode!['parent_id'] == null;
-                            final vLabel = _getVersionLabel(_selectedNode!);
-                            if (isRootNode) {
-                              return '${AppTranslations.tr("version", lang)} #$vLabel (Root)';
-                            }
-                            return '${AppTranslations.tr("version", lang)} #$vLabel';
-                          }(),
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (_selectedNode!['instruction'] != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '"${_selectedNode!['instruction']}"',
-                            style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (isCompleted && text.isNotEmpty)
-                    (isCompact
-                        ? IconButton(
-                            onPressed: () => _copyToClipboard(displayedText, lang),
-                            tooltip: AppTranslations.tr('copy_speech', lang),
-                            icon: const Icon(Icons.copy, size: 16),
-                            style: IconButton.styleFrom(
-                              foregroundColor: const Color(0xFFA5B4FC),
-                              side: const BorderSide(color: Color(0xFF4338CA)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          )
-                        : OutlinedButton.icon(
-                            onPressed: () => _copyToClipboard(displayedText, lang),
-                            icon: const Icon(Icons.copy, size: 14),
-                            label: Text(AppTranslations.tr('copy_speech', lang)),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFA5B4FC),
-                              side: const BorderSide(color: Color(0xFF4338CA)),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          )),
-                ],
-              ),
-              if (isCompleted && text.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    ShareButtons(text: displayedText),
-                    OutlinedButton.icon(
-                      onPressed: _isTranslating ? null : _pickLanguageAndTranslate,
-                      icon: _isTranslating
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA5B4FC)),
-                            )
-                          : const Icon(Icons.translate_rounded, size: 14),
-                      label: Text(AppTranslations.tr('translate_button', lang)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFA5B4FC),
-                        side: const BorderSide(color: Color(0xFF4338CA)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (isCompleted) ...[
-                const SizedBox(height: 14),
-                const Divider(color: Color(0xFF243044), height: 1),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (parentNode != null)
-                      Row(
-                        children: [
-                          ChoiceChip(
-                            label: Text(AppTranslations.tr('view_full_text', lang)),
-                            selected: !_viewDiff,
-                            onSelected: (_) => setState(() => _viewDiff = false),
-                            selectedColor: const Color(0xFF4F46E5),
-                            backgroundColor: const Color(0xFF0F172A),
-                            labelStyle: GoogleFonts.inter(
-                              color: !_viewDiff ? Colors.white : const Color(0xFF94A3B8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: Text(AppTranslations.tr('view_diff', lang)),
-                            selected: _viewDiff,
-                            onSelected: (_) => setState(() => _viewDiff = true),
-                            selectedColor: const Color(0xFF4F46E5),
-                            backgroundColor: const Color(0xFF0F172A),
-                            labelStyle: GoogleFonts.inter(
-                              color: _viewDiff ? Colors.white : const Color(0xFF94A3B8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    if (!_viewDiff && text.isNotEmpty)
-                      Text(
-                        '$wordCount ${AppTranslations.tr("words", lang)} • ~$readTimeMinutes ${AppTranslations.tr("minutes", lang)}',
-                        style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 11),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
+        _buildVersionPillsRow(flatNodes, lang, c),
         const SizedBox(height: 12),
         if (_translatedText != null) ...[
           Wrap(
@@ -1433,25 +1187,27 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                 label: Text(AppTranslations.translateLanguageName(_selectedNode!['language'], lang)),
                 selected: !_viewingTranslation,
                 onSelected: (_) => setState(() => _viewingTranslation = false),
-                selectedColor: const Color(0xFF4F46E5),
-                backgroundColor: const Color(0xFF161E2E),
-                labelStyle: GoogleFonts.inter(
-                  color: !_viewingTranslation ? Colors.white : const Color(0xFF94A3B8),
+                selectedColor: c.acc,
+                backgroundColor: c.surf,
+                labelStyle: GoogleFonts.schibstedGrotesk(
+                  color: !_viewingTranslation ? Colors.white : c.tx2,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
+                side: BorderSide(color: c.bord),
               ),
               ChoiceChip(
                 label: Text(_translatedLanguage ?? ''),
                 selected: _viewingTranslation,
                 onSelected: (_) => setState(() => _viewingTranslation = true),
-                selectedColor: const Color(0xFF4F46E5),
-                backgroundColor: const Color(0xFF161E2E),
-                labelStyle: GoogleFonts.inter(
-                  color: _viewingTranslation ? Colors.white : const Color(0xFF94A3B8),
+                selectedColor: c.acc,
+                backgroundColor: c.surf,
+                labelStyle: GoogleFonts.schibstedGrotesk(
+                  color: _viewingTranslation ? Colors.white : c.tx2,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
+                side: BorderSide(color: c.bord),
               ),
             ],
           ),
@@ -1460,7 +1216,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               padding: const EdgeInsets.only(top: 8.0),
               child: Text(
                 'Bu bir önizleme çevirisidir ve kaydedilmez. Düzenlemeler her zaman orijinal dilden devam eder.',
-                style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 11, fontStyle: FontStyle.italic),
+                style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 11, fontStyle: FontStyle.italic),
               ),
             ),
           const SizedBox(height: 12),
@@ -1470,13 +1226,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             padding: const EdgeInsets.all(20),
             constraints: const BoxConstraints(minHeight: 240),
             decoration: BoxDecoration(
-              color: const Color(0xFF161E2E),
+              color: c.surf,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF243044)),
+              border: Border.all(color: c.bordSoft),
             ),
             child: SelectableText(
               _translatedText!,
-              style: GoogleFonts.roboto(color: Colors.white, fontSize: 15, height: 1.65),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 15, height: 1.8),
             ),
           )
         else if (_viewDiff && parentNode != null && isCompleted)
@@ -1491,23 +1247,20 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             padding: const EdgeInsets.all(20),
             constraints: const BoxConstraints(minHeight: 240),
             decoration: BoxDecoration(
-              color: const Color(0xFF161E2E),
+              color: c.surf,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF243044)),
+              border: Border.all(color: c.bordSoft),
             ),
-            child: _selectedNode!['status'] == 'pending' ||
-                    _selectedNode!['status'] == 'processing'
+            child: (_selectedNode!['status'] == 'pending' || _selectedNode!['status'] == 'processing')
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const CircularProgressIndicator(
-                            color: Color(0xFF818CF8)),
+                        CircularProgressIndicator(color: c.acc),
                         const SizedBox(height: 16),
                         Text(
                           AppTranslations.tr('status_generating', lang),
-                          style: GoogleFonts.inter(
-                              color: const Color(0xFF94A3B8), fontSize: 13),
+                          style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                         ),
                       ],
                     ),
@@ -1517,198 +1270,87 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const CircularProgressIndicator(
-                                color: Color(0xFF818CF8)),
+                            CircularProgressIndicator(color: c.acc),
                             const SizedBox(height: 16),
                             Text(
                               AppTranslations.tr('status_generating', lang),
-                              style: GoogleFonts.inter(
-                                  color: const Color(0xFF94A3B8),
-                                  fontSize: 13),
+                              style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                             ),
                           ],
                         ),
                       )
-                    : Container(
-                        key: _textContainerKey,
-                        child: Listener(
-                          onPointerUp: (_) {
-                            _selectionDebounce?.cancel();
-                            _handleSelectionCompleted();
-                          },
-                          child: SelectableText.rich(
-                            _buildSelectableTextSpan(text, _currentSelectedText),
-                            selectionColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
-                            onSelectionChanged: (selection, cause) {
-                              _currentTextSelection = selection;
-
-                              // Extract the selected substring snapped to full word boundaries
-                              final selected = _snapToWordBoundaries(text, selection);
-
-                              _pendingSelectedText = selected;
-
-                              // Dismiss on empty / too-short selection
-                              if (selected.length < 10) {
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (text.isNotEmpty) ...[
+                            Text(
+                              captionLeft,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: c.tx3),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$wordCount ${AppTranslations.tr("words", lang).toUpperCase()} · ~$readTimeMinutes ${AppTranslations.tr("minutes", lang).toUpperCase()}',
+                              style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, color: c.tx3),
+                            ),
+                            const SizedBox(height: 14),
+                            Divider(color: c.bordSoft, height: 1),
+                            const SizedBox(height: 14),
+                          ],
+                          Container(
+                            key: _textContainerKey,
+                            child: Listener(
+                              onPointerUp: (_) {
                                 _selectionDebounce?.cancel();
-                                if (_toolbarController.isVisible) {
-                                  _toolbarController.hide();
-                                  setState(() => _currentSelectedText = '');
-                                }
-                                return;
-                              }
+                                _handleSelectionCompleted();
+                              },
+                              child: SelectableText.rich(
+                                _buildSelectableTextSpan(text, _currentSelectedText, c),
+                                selectionColor: c.acc.withValues(alpha: 0.4),
+                                onSelectionChanged: (selection, cause) {
+                                  _currentTextSelection = selection;
 
-                              // On mobile, dragging the selection handles doesn't fire
-                              // Listener.onPointerUp (the handles live in a separate
-                              // overlay and consume the touch themselves), so
-                              // _handleSelectionCompleted would never run there. Debounce
-                              // on every selection change as a cross-platform fallback:
-                              // once the selection stops moving for a short pause, treat
-                              // it as final and show the toolbar.
-                              _selectionDebounce?.cancel();
-                              _selectionDebounce = Timer(
-                                const Duration(milliseconds: 400),
-                                _handleSelectionCompleted,
-                              );
-                            },
+                                  // Extract the selected substring snapped to full word boundaries
+                                  final selected = _snapToWordBoundaries(text, selection);
+
+                                  _pendingSelectedText = selected;
+
+                                  // Dismiss on empty / too-short selection
+                                  if (selected.length < 10) {
+                                    _selectionDebounce?.cancel();
+                                    if (_toolbarController.isVisible) {
+                                      _toolbarController.hide();
+                                      setState(() => _currentSelectedText = '');
+                                    }
+                                    return;
+                                  }
+
+                                  // On mobile, dragging the selection handles doesn't fire
+                                  // Listener.onPointerUp (the handles live in a separate
+                                  // overlay and consume the touch themselves), so
+                                  // _handleSelectionCompleted would never run there. Debounce
+                                  // on every selection change as a cross-platform fallback:
+                                  // once the selection stops moving for a short pause, treat
+                                  // it as final and show the toolbar.
+                                  _selectionDebounce?.cancel();
+                                  _selectionDebounce = Timer(
+                                    const Duration(milliseconds: 400),
+                                    _handleSelectionCompleted,
+                                  );
+                                },
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
           ),
-        const SizedBox(height: 16),
-        if (isCompleted)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161E2E),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF243044)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF818CF8)),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppTranslations.tr('update_instruction', lang),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: suggestions.map((suggestion) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ActionChip(
-                          label: Text(suggestion),
-                          onPressed: () {
-                            setState(() {
-                              _instructionController.text = suggestion;
-                            });
-                          },
-                          backgroundColor: const Color(0xFF0F172A),
-                          labelStyle: GoogleFonts.inter(
-                            color: const Color(0xFFC7D2FE),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          side: const BorderSide(color: Color(0xFF334155)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Builder(builder: (context) {
-                  final field = TextFormField(
-                    controller: _instructionController,
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
-                    maxLines: isCompact ? 6 : 4,
-                    minLines: isCompact ? 3 : 2,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: AppTranslations.tr('update_instruction_hint', lang),
-                      hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
-                      filled: true,
-                      fillColor: const Color(0xFF0F172A),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF243044)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-                      ),
-                    ),
-                  );
-
-                  final button = ElevatedButton.icon(
-                    onPressed: (_isSubmitting || _instructionController.text.trim().isEmpty) ? null : _submitUpdate,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      disabledBackgroundColor: const Color(0xFF334155).withValues(alpha: 0.5),
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: const Color(0xFF64748B),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                    ),
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : Icon(
-                            Icons.send_rounded,
-                            size: 16,
-                            color: _instructionController.text.trim().isEmpty
-                                ? const Color(0xFF64748B)
-                                : Colors.white,
-                          ),
-                    label: Text(
-                      _isSubmitting
-                          ? AppTranslations.tr('status_generating', lang)
-                          : AppTranslations.tr('apply_changes', lang),
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                  );
-
-                  if (isCompact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        field,
-                        const SizedBox(height: 10),
-                        button,
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(child: field),
-                      const SizedBox(width: 12),
-                      button,
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ),
+        if (isCompleted) ...[
+          const SizedBox(height: 18),
+          _buildComposer(lang, c, isCompact, suggestions),
+        ],
         if (_selectedNode!['room_id'] != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           DiscussionPanel(
             key: ValueKey(_selectedNode!['id']),
             talkId: _selectedNode!['id'] as int,
@@ -1716,6 +1358,88 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             onVersionGenerated: _reloadData,
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildComposer(String lang, AppColors c, bool isCompact, List<String> suggestions) {
+    final hasInstruction = _instructionController.text.trim().isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: suggestions.map((s) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(99),
+                  onTap: () => setState(() => _instructionController.text = s),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: c.surf,
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: c.bord),
+                    ),
+                    child: Text(s, style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, color: c.accTx)),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: c.surf,
+            border: Border.all(color: c.bord),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _instructionController,
+                  maxLines: isCompact ? 4 : 1,
+                  minLines: 1,
+                  style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 13.5),
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: AppTranslations.tr('update_instruction_hint', lang),
+                    hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13.5),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(11),
+                onTap: (_isSubmitting || !hasInstruction) ? null : _submitUpdate,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: (_isSubmitting || !hasInstruction) ? c.bord : c.acc,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: _isSubmitting
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(Icons.arrow_upward_rounded, color: hasInstruction ? Colors.white : c.tx3, size: 18),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
