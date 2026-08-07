@@ -26,15 +26,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
   Map<String, dynamic>? _selectedTalkType;
   bool _loadingTalkTypes = true;
 
-  final List<Map<String, String>> _languageItems = [
-    {'code': 'Türkçe', 'symbol': '🇹🇷'},
-    {'code': 'İngilizce', 'symbol': '🇬🇧'},
-    {'code': 'Almanca', 'symbol': '🇩🇪'},
-    {'code': 'Fransızca', 'symbol': '🇫🇷'},
-    {'code': 'İspanyolca', 'symbol': '🇪🇸'},
-    {'code': 'Arapça', 'symbol': '🇸🇦'},
-    {'code': 'Rusça', 'symbol': '🇷🇺'},
-  ];
+  List<Map<String, String>> get _languageItems => AppTranslations.supportedLanguages;
 
   String _selectedLanguage = 'Türkçe';
 

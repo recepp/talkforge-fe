@@ -112,7 +112,7 @@ class AppTranslations {
       'update_instruction_hint': 'Konuşmada neyi değiştirmek istersiniz? (Örn: "Daha vurucu bir son ekle")',
       'apply_changes': 'Değişiklikleri Uygula',
       'copy_speech': 'Metni Kopyala',
-      'translate_tr_en_ar': 'TR/EN/AR çevir',
+      'translate_button': 'Çevir',
       'speech_copied': 'Metin panoya kopyalandı',
 
       // Text Selection Toolbar
@@ -241,7 +241,7 @@ class AppTranslations {
       'update_instruction_hint': 'What would you like to change? (E.g.: "Add a punchier ending")',
       'apply_changes': 'Apply Changes',
       'copy_speech': 'Copy Text',
-      'translate_tr_en_ar': 'Translate TR/EN/AR',
+      'translate_button': 'Translate',
       'speech_copied': 'Text copied to clipboard',
 
       // Text Selection Toolbar
@@ -362,7 +362,7 @@ class AppTranslations {
       'update_instruction_hint': 'Was möchten Sie ändern? (Z.B.: "Füge ein prägnantes Ende hinzu")',
       'apply_changes': 'Änderungen anwenden',
       'copy_speech': 'Text kopieren',
-      'translate_tr_en_ar': 'TR/EN/AR übersetzen',
+      'translate_button': 'Übersetzen',
       'speech_copied': 'Text in Zwischenablage kopiert',
     },
     'es': {
@@ -472,7 +472,7 @@ class AppTranslations {
       'update_instruction_hint': '¿Qué le gustaría cambiar? (Ej.: "Añadir un final más impactante")',
       'apply_changes': 'Aplicar Cambios',
       'copy_speech': 'Copiar Texto',
-      'translate_tr_en_ar': 'Traducir TR/EN/AR',
+      'translate_button': 'Traducir',
       'speech_copied': 'Texto copiado al portapapeles',
     },
     'fr': {
@@ -582,7 +582,7 @@ class AppTranslations {
       'update_instruction_hint': "Que souhaitez-vous modifier ? (Ex: 'Ajouter une fin plus percutante')",
       'apply_changes': 'Appliquer les modifications',
       'copy_speech': 'Copier le texte',
-      'translate_tr_en_ar': 'Traduire TR/EN/AR',
+      'translate_button': 'Traduire',
       'speech_copied': 'Texte copié dans le presse-papier',
     },
   };
@@ -643,4 +643,17 @@ class AppTranslations {
     }
     return languageName;
   }
+
+  /// The full set of languages the app supports for speech generation and
+  /// translation, in the literal form stored/sent as TalkRequest.language
+  /// (e.g. sent straight into the Gemini prompt).
+  static const List<Map<String, String>> supportedLanguages = [
+    {'code': 'Türkçe', 'symbol': '🇹🇷'},
+    {'code': 'İngilizce', 'symbol': '🇬🇧'},
+    {'code': 'Almanca', 'symbol': '🇩🇪'},
+    {'code': 'Fransızca', 'symbol': '🇫🇷'},
+    {'code': 'İspanyolca', 'symbol': '🇪🇸'},
+    {'code': 'Arapça', 'symbol': '🇸🇦'},
+    {'code': 'Rusça', 'symbol': '🇷🇺'},
+  ];
 }

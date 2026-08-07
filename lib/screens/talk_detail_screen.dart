@@ -418,35 +418,58 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
-  /// Kicks off translated versions of the current node in the other two
-  /// standard languages (skips whichever of TR/EN/AR the node is already in).
-  Future<void> _translateToOtherLanguages() async {
+  /// Opens a picker with every supported language (minus whichever the
+  /// current node is already in) and kicks off a translated version of just
+  /// the one the user picks.
+  Future<void> _pickLanguageAndTranslate() async {
     if (_selectedNode == null || _isTranslating) return;
     final currentText = _selectedNode!['generated_text'] as String? ?? '';
     if (currentText.isEmpty) return;
 
-    const targets = ['Türkçe', 'İngilizce', 'Arapça'];
-    final currentLanguage = (_selectedNode!['language'] as String? ?? '').toLowerCase();
-    final toRequest = targets.where((t) {
-      final tl = t.toLowerCase();
-      if (tl.startsWith('türk') && currentLanguage.contains('türk')) return false;
-      if (tl.startsWith('ing') && (currentLanguage.contains('ing') || currentLanguage.contains('eng'))) return false;
-      if (tl.startsWith('arap') && currentLanguage.contains('arap')) return false;
-      return true;
-    }).toList();
+    // The talk's `language` is always one of AppTranslations.supportedLanguages'
+    // own literal codes (set either at creation or by a prior translate), so a
+    // direct match is enough to exclude it from the picker.
+    final currentLanguage = _selectedNode!['language'] as String? ?? '';
+    final options = AppTranslations.supportedLanguages.where((item) => item['code'] != currentLanguage).toList();
 
-    if (toRequest.isEmpty) return;
+    if (!mounted || options.isEmpty) return;
+
+    final target = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                'Hangi dile çevrilsin?',
+                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+            ...options.map((item) => ListTile(
+                  leading: Text(item['symbol']!, style: const TextStyle(fontSize: 20)),
+                  title: Text(item['code']!, style: GoogleFonts.inter(color: Colors.white, fontSize: 14)),
+                  onTap: () => Navigator.pop(context, item['code']),
+                )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (target == null || !mounted) return;
 
     setState(() => _isTranslating = true);
     try {
-      final parentId = _selectedNode!['id'];
-      for (final target in toRequest) {
-        await ApiService.createTalkRequest(
-          mode: 'translate',
-          parentId: parentId,
-          language: target,
-        );
-      }
+      await ApiService.createTalkRequest(
+        mode: 'translate',
+        parentId: _selectedNode!['id'],
+        language: target,
+      );
       await _reloadData();
     } catch (e) {
       if (mounted) {
@@ -1311,7 +1334,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   children: [
                     ShareButtons(text: text),
                     OutlinedButton.icon(
-                      onPressed: _isTranslating ? null : _translateToOtherLanguages,
+                      onPressed: _isTranslating ? null : _pickLanguageAndTranslate,
                       icon: _isTranslating
                           ? const SizedBox(
                               width: 14,
@@ -1319,7 +1342,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA5B4FC)),
                             )
                           : const Icon(Icons.translate_rounded, size: 14),
-                      label: Text(AppTranslations.tr('translate_tr_en_ar', lang)),
+                      label: Text(AppTranslations.tr('translate_button', lang)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFA5B4FC),
                         side: const BorderSide(color: Color(0xFF4338CA)),
