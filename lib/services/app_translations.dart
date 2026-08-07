@@ -112,6 +112,7 @@ class AppTranslations {
       'update_instruction_hint': 'Konuşmada neyi değiştirmek istersiniz? (Örn: "Daha vurucu bir son ekle")',
       'apply_changes': 'Değişiklikleri Uygula',
       'copy_speech': 'Metni Kopyala',
+      'translate_tr_en_ar': 'TR/EN/AR çevir',
       'speech_copied': 'Metin panoya kopyalandı',
 
       // Text Selection Toolbar
@@ -240,6 +241,7 @@ class AppTranslations {
       'update_instruction_hint': 'What would you like to change? (E.g.: "Add a punchier ending")',
       'apply_changes': 'Apply Changes',
       'copy_speech': 'Copy Text',
+      'translate_tr_en_ar': 'Translate TR/EN/AR',
       'speech_copied': 'Text copied to clipboard',
 
       // Text Selection Toolbar
@@ -360,6 +362,7 @@ class AppTranslations {
       'update_instruction_hint': 'Was möchten Sie ändern? (Z.B.: "Füge ein prägnantes Ende hinzu")',
       'apply_changes': 'Änderungen anwenden',
       'copy_speech': 'Text kopieren',
+      'translate_tr_en_ar': 'TR/EN/AR übersetzen',
       'speech_copied': 'Text in Zwischenablage kopiert',
     },
     'es': {
@@ -469,6 +472,7 @@ class AppTranslations {
       'update_instruction_hint': '¿Qué le gustaría cambiar? (Ej.: "Añadir un final más impactante")',
       'apply_changes': 'Aplicar Cambios',
       'copy_speech': 'Copiar Texto',
+      'translate_tr_en_ar': 'Traducir TR/EN/AR',
       'speech_copied': 'Texto copiado al portapapeles',
     },
     'fr': {
@@ -578,6 +582,7 @@ class AppTranslations {
       'update_instruction_hint': "Que souhaitez-vous modifier ? (Ex: 'Ajouter une fin plus percutante')",
       'apply_changes': 'Appliquer les modifications',
       'copy_speech': 'Copier le texte',
+      'translate_tr_en_ar': 'Traduire TR/EN/AR',
       'speech_copied': 'Texte copié dans le presse-papier',
     },
   };

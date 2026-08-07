@@ -8,6 +8,7 @@ import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../widgets/talk_diff_view.dart';
 import '../widgets/text_selection_toolbar.dart';
+import '../widgets/share_buttons.dart';
 
 class FlatTreeNode {
   final Map<String, dynamic> node;
@@ -38,6 +39,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   TextSelection? _currentTextSelection;
   Timer? _selectionDebounce;
   bool _isPartialSubmitting = false;
+  bool _isTranslating = false;
   bool _heroExpanded = false;
   bool _versionsExpanded = false;
 
@@ -411,6 +413,51 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         setState(() {
           _isPartialSubmitting = false;
         });
+      }
+    }
+  }
+
+  /// Kicks off translated versions of the current node in the other two
+  /// standard languages (skips whichever of TR/EN/AR the node is already in).
+  Future<void> _translateToOtherLanguages() async {
+    if (_selectedNode == null || _isTranslating) return;
+    final currentText = _selectedNode!['generated_text'] as String? ?? '';
+    if (currentText.isEmpty) return;
+
+    const targets = ['Türkçe', 'İngilizce', 'Arapça'];
+    final currentLanguage = (_selectedNode!['language'] as String? ?? '').toLowerCase();
+    final toRequest = targets.where((t) {
+      final tl = t.toLowerCase();
+      if (tl.startsWith('türk') && currentLanguage.contains('türk')) return false;
+      if (tl.startsWith('ing') && (currentLanguage.contains('ing') || currentLanguage.contains('eng'))) return false;
+      if (tl.startsWith('arap') && currentLanguage.contains('arap')) return false;
+      return true;
+    }).toList();
+
+    if (toRequest.isEmpty) return;
+
+    setState(() => _isTranslating = true);
+    try {
+      final parentId = _selectedNode!['id'];
+      for (final target in toRequest) {
+        await ApiService.createTalkRequest(
+          mode: 'translate',
+          parentId: parentId,
+          language: target,
+        );
+      }
+      await _reloadData();
+    } catch (e) {
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isTranslating = false);
       }
     }
   }
@@ -1254,6 +1301,34 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                           )),
                 ],
               ),
+              if (isCompleted && text.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    ShareButtons(text: text),
+                    OutlinedButton.icon(
+                      onPressed: _isTranslating ? null : _translateToOtherLanguages,
+                      icon: _isTranslating
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA5B4FC)),
+                            )
+                          : const Icon(Icons.translate_rounded, size: 14),
+                      label: Text(AppTranslations.tr('translate_tr_en_ar', lang)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFA5B4FC),
+                        side: const BorderSide(color: Color(0xFF4338CA)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               if (isCompleted) ...[
                 const SizedBox(height: 14),
                 const Divider(color: Color(0xFF243044), height: 1),

@@ -255,7 +255,7 @@ class ApiService {
   }) async {
     final body = {
       'mode': mode,
-      if (mode == 'new') 'language': language,
+      if (mode == 'new' || mode == 'translate') 'language': language,
       if (mode == 'new') 'place': place,
       if (mode == 'new') 'topic': topic,
       if (mode == 'new') 'speech_type': speechType,
@@ -264,7 +264,7 @@ class ApiService {
       if (mode == 'new') 'duration': duration,
       if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
         'instruction': instruction,
-      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update')
+      if (mode == 'update' || mode == 'partial_update' || mode == 'manual_update' || mode == 'translate')
         'parent_id': parentId,
       if ((mode == 'partial_update' || mode == 'manual_update') && selectedText != null)
         'selected_text': selectedText,
