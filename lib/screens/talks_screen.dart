@@ -77,7 +77,6 @@ class _TalksScreenState extends State<TalksScreen> {
           err.contains('unauthorized') ||
           err.contains('oturum') ||
           err.contains('token') ||
-          err.contains('headers') ||
           err.contains('iso-8859-1')) {
         _pollTimer?.cancel();
         _pollTimer = null;

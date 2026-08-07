@@ -112,9 +112,14 @@ class AppTranslations {
 
       // Text Selection Toolbar
       'edit_selection': 'Seçimi Düzenle',
-      'edit_selection_hint': 'Bu bölümü nasıl değiştireyim? (Örn: "Daha akıcı yap", "Örnek ekle")',
-      'selected_text_preview': 'Seçilen bölüm',
-      'generate_new_version': 'Yeni Versiyon Üret',
+      'edit_selection_hint': 'Bu bölümü yapay zeka ile değiştirmek için yönerge yazın (Örn: "Daha akıcı yap")',
+      'selected_text_preview': 'Seçilen Bölüm (Düzenlenebilir)',
+      'edit_manually_hint': 'Seçilen metni doğrudan burada düzenleyebilirsiniz...',
+      'generate_new_version': 'AI ile Yeniden Üret',
+      'save_manual_edit': 'Manuel Kaydet',
+      'clear_selection': 'Metni Temizle / Sil',
+      'delete_and_save': 'Seçimi Sil & Kaydet',
+      'section_deleted_notice': 'Seçilen bölüm tamamen silinecek',
       'close_toolbar': 'Kapat',
       'selection_too_short': 'Lütfen daha uzun bir metin seçin.',
     },
@@ -230,9 +235,11 @@ class AppTranslations {
 
       // Text Selection Toolbar
       'edit_selection': 'Edit Selection',
-      'edit_selection_hint': 'How should I change this section? (e.g. "Make it more vivid", "Add an example")',
-      'selected_text_preview': 'Selected passage',
-      'generate_new_version': 'Generate New Version',
+      'edit_selection_hint': 'Type instruction for AI (e.g. "Make it more vivid", "Add an example")',
+      'selected_text_preview': 'Selected Section (Editable)',
+      'edit_manually_hint': 'Directly edit the selected text here...',
+      'generate_new_version': 'Generate with AI',
+      'save_manual_edit': 'Save Manually',
       'close_toolbar': 'Close',
       'selection_too_short': 'Please select a longer passage.',
     },

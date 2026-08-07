@@ -308,6 +308,68 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     return RegExp(r'[\w\u00C0-\u024F\u1E00-\u1EFF]').hasMatch(char);
   }
 
+  Future<void> _submitManualUpdate({
+    required String originalSelectedText,
+    required String newSelectedText,
+  }) async {
+    if (_selectedNode == null) return;
+
+    final currentFullText = _selectedNode!['generated_text'] as String? ?? '';
+    if (currentFullText.isEmpty) return;
+
+    String updatedFullText = currentFullText;
+    if (originalSelectedText.isNotEmpty) {
+      if (currentFullText.contains(originalSelectedText)) {
+        updatedFullText = currentFullText.replaceFirst(originalSelectedText, newSelectedText);
+      } else {
+        final trimmed = originalSelectedText.trim();
+        if (trimmed.isNotEmpty && currentFullText.contains(trimmed)) {
+          updatedFullText = currentFullText.replaceFirst(trimmed, newSelectedText);
+        }
+      }
+    }
+
+    // Clean up multiple empty lines and trim leading/trailing space
+    updatedFullText = updatedFullText
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+
+    setState(() {
+      _isPartialSubmitting = true;
+      _currentSelectedText = '';
+    });
+
+    try {
+      final lang = Provider.of<AuthProvider>(context, listen: false).language;
+      final newRequest = await ApiService.createTalkRequest(
+        mode: 'manual_update',
+        parentId: _selectedNode!['id'],
+        instruction: AppTranslations.tr('save_manual_edit', lang),
+        selectedText: originalSelectedText,
+        generatedText: updatedFullText,
+      );
+      setState(() {
+        _selectedNode = newRequest;
+        _viewDiff = false;
+      });
+      await _reloadData();
+    } catch (e) {
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (!authProvider.isAuthenticated) return;
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPartialSubmitting = false;
+        });
+      }
+    }
+  }
+
   /// Opens the floating editing toolbar only when the user finishes dragging and releases the mouse.
   void _handleSelectionCompleted() {
     final selected = _pendingSelectedText;
@@ -341,6 +403,12 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         _submitPartialUpdate(
           selectedText: selText,
           instruction: instruction,
+        );
+      },
+      onManualSubmit: (origText, updatedText) {
+        _submitManualUpdate(
+          originalSelectedText: origText,
+          newSelectedText: updatedText,
         );
       },
       onDismiss: () {
@@ -942,7 +1010,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final parentId = _selectedNode!['parent_id'];
     final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
     final isCompleted = _selectedNode!['status'] == 'completed';
-    final text = _selectedNode!['generated_text'] ?? '';
+    final text = (_selectedNode!['generated_text'] as String? ?? '').trim();
     final wordCount = _countWords(text);
     final readTimeMinutes = (wordCount / 130).ceil();
     final suggestions = _getQuickSuggestions(lang);
