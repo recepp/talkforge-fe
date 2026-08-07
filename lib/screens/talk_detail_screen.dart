@@ -606,6 +606,14 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
     final flatNodes = _flattenTree(_talkTree, 0);
+    flatNodes.sort((a, b) {
+      final vA = _getVersionNumber(a.node);
+      final vB = _getVersionNumber(b.node);
+      if (vA != vB) return vB.compareTo(vA);
+      final idA = (a.node['id'] as num?)?.toInt() ?? 0;
+      final idB = (b.node['id'] as num?)?.toInt() ?? 0;
+      return idB.compareTo(idA);
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F17),
