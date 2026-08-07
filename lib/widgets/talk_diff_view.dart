@@ -10,8 +10,8 @@ import 'package:diff_match_patch/diff_match_patch.dart';
 class TalkDiffView extends StatefulWidget {
   final String parentText;
   final String childText;
-  final int parentId;
-  final int childId;
+  final dynamic parentId;
+  final dynamic childId;
 
   const TalkDiffView({
     super.key,
