@@ -36,7 +36,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   String _currentSelectedText = '';
   String _pendingSelectedText = '';
   TextSelection? _currentTextSelection;
+  Timer? _selectionDebounce;
   bool _isPartialSubmitting = false;
+  bool _heroExpanded = false;
+  bool _versionsExpanded = false;
 
   bool _isReloading = false;
   bool _isSubmitting = false;
@@ -80,6 +83,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _selectionDebounce?.cancel();
     _instructionController.dispose();
     _toolbarController.dispose();
     super.dispose();
@@ -808,6 +812,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   Widget _buildHeroHeaderCard(String lang) {
+    final topic = _talkTree['topic'] as String? ?? '';
+    final isLongTopic = topic.length > 160;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -852,7 +858,9 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            _talkTree['topic'] ?? '',
+            topic,
+            maxLines: _heroExpanded ? null : 5,
+            overflow: _heroExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 17,
@@ -860,6 +868,34 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               height: 1.3,
             ),
           ),
+          if (isLongTopic)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: InkWell(
+                onTap: () => setState(() => _heroExpanded = !_heroExpanded),
+                borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _heroExpanded
+                          ? AppTranslations.tr('show_less', lang)
+                          : AppTranslations.tr('show_more', lang),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFA5B4FC),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Icon(
+                      _heroExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                      color: const Color(0xFFA5B4FC),
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 14),
           Wrap(
             spacing: 8,
@@ -898,6 +934,14 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   Widget _buildTreeSection(List<FlatTreeNode> flatNodes, String lang) {
+    final selectedIndex = _selectedNode == null
+        ? -1
+        : flatNodes.indexWhere((f) => f.node['id'] == _selectedNode!['id']);
+    final visibleNodes = _versionsExpanded || flatNodes.length <= 1
+        ? flatNodes
+        : [flatNodes[selectedIndex >= 0 ? selectedIndex : 0]];
+    final hiddenCount = flatNodes.length - visibleNodes.length;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -940,7 +984,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
           const SizedBox(height: 14),
           Column(
-            children: flatNodes.map((flat) {
+            children: visibleNodes.map((flat) {
               final node = flat.node;
               final status = node['status'] as String;
               final statusColor = _getStatusColor(status);
@@ -1049,6 +1093,39 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               );
             }).toList(),
           ),
+          if (hiddenCount > 0 || _versionsExpanded)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: InkWell(
+                onTap: () => setState(() => _versionsExpanded = !_versionsExpanded),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _versionsExpanded
+                            ? AppTranslations.tr('show_less', lang)
+                            : '${AppTranslations.tr('show_older_versions', lang)} ($hiddenCount)',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFA5B4FC),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Icon(
+                        _versionsExpanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: const Color(0xFFA5B4FC),
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1105,6 +1182,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final wordCount = _countWords(text);
     final readTimeMinutes = (wordCount / 130).ceil();
     final suggestions = _getQuickSuggestions(lang);
+    final isCompact = MediaQuery.of(context).size.width < 700;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1152,17 +1230,28 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     ),
                   ),
                   if (isCompleted && text.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: () => _copyToClipboard(text, lang),
-                      icon: const Icon(Icons.copy, size: 14),
-                      label: Text(AppTranslations.tr('copy_speech', lang)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFA5B4FC),
-                        side: const BorderSide(color: Color(0xFF4338CA)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
+                    (isCompact
+                        ? IconButton(
+                            onPressed: () => _copyToClipboard(text, lang),
+                            tooltip: AppTranslations.tr('copy_speech', lang),
+                            icon: const Icon(Icons.copy, size: 16),
+                            style: IconButton.styleFrom(
+                              foregroundColor: const Color(0xFFA5B4FC),
+                              side: const BorderSide(color: Color(0xFF4338CA)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () => _copyToClipboard(text, lang),
+                            icon: const Icon(Icons.copy, size: 14),
+                            label: Text(AppTranslations.tr('copy_speech', lang)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFA5B4FC),
+                              side: const BorderSide(color: Color(0xFF4338CA)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          )),
                 ],
               ),
               if (isCompleted) ...[
@@ -1267,7 +1356,10 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                     : Container(
                         key: _textContainerKey,
                         child: Listener(
-                          onPointerUp: (_) => _handleSelectionCompleted(),
+                          onPointerUp: (_) {
+                            _selectionDebounce?.cancel();
+                            _handleSelectionCompleted();
+                          },
                           child: SelectableText.rich(
                             _buildSelectableTextSpan(text, _currentSelectedText),
                             selectionColor: const Color(0xFF6366F1).withValues(alpha: 0.5),
@@ -1281,11 +1373,26 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
                               // Dismiss on empty / too-short selection
                               if (selected.length < 10) {
+                                _selectionDebounce?.cancel();
                                 if (_toolbarController.isVisible) {
                                   _toolbarController.hide();
                                   setState(() => _currentSelectedText = '');
                                 }
+                                return;
                               }
+
+                              // On mobile, dragging the selection handles doesn't fire
+                              // Listener.onPointerUp (the handles live in a separate
+                              // overlay and consume the touch themselves), so
+                              // _handleSelectionCompleted would never run there. Debounce
+                              // on every selection change as a cross-platform fallback:
+                              // once the selection stops moving for a short pause, treat
+                              // it as final and show the toolbar.
+                              _selectionDebounce?.cancel();
+                              _selectionDebounce = Timer(
+                                const Duration(milliseconds: 400),
+                                _handleSelectionCompleted,
+                              );
                             },
                           ),
                         ),
@@ -1345,67 +1452,82 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _instructionController,
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
-                        maxLines: 2,
-                        minLines: 1,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: AppTranslations.tr('update_instruction_hint', lang),
-                          hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
-                          filled: true,
-                          fillColor: const Color(0xFF0F172A),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF243044)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-                          ),
-                        ),
+                Builder(builder: (context) {
+                  final field = TextFormField(
+                    controller: _instructionController,
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                    maxLines: isCompact ? 6 : 4,
+                    minLines: isCompact ? 3 : 2,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: AppTranslations.tr('update_instruction_hint', lang),
+                      hintStyle: GoogleFonts.inter(color: const Color(0xFF475569), fontSize: 13),
+                      filled: true,
+                      fillColor: const Color(0xFF0F172A),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF243044)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: (_isSubmitting || _instructionController.text.trim().isEmpty) ? null : _submitUpdate,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        disabledBackgroundColor: const Color(0xFF334155).withValues(alpha: 0.5),
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: const Color(0xFF64748B),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 2,
-                      ),
-                      icon: _isSubmitting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Icon(
-                              Icons.send_rounded,
-                              size: 16,
-                              color: _instructionController.text.trim().isEmpty
-                                  ? const Color(0xFF64748B)
-                                  : Colors.white,
-                            ),
-                      label: Text(
-                        _isSubmitting
-                            ? AppTranslations.tr('status_generating', lang)
-                            : AppTranslations.tr('apply_changes', lang),
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
+                  );
+
+                  final button = ElevatedButton.icon(
+                    onPressed: (_isSubmitting || _instructionController.text.trim().isEmpty) ? null : _submitUpdate,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      disabledBackgroundColor: const Color(0xFF334155).withValues(alpha: 0.5),
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
                     ),
-                  ],
-                ),
+                    icon: _isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Icon(
+                            Icons.send_rounded,
+                            size: 16,
+                            color: _instructionController.text.trim().isEmpty
+                                ? const Color(0xFF64748B)
+                                : Colors.white,
+                          ),
+                    label: Text(
+                      _isSubmitting
+                          ? AppTranslations.tr('status_generating', lang)
+                          : AppTranslations.tr('apply_changes', lang),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  );
+
+                  if (isCompact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        field,
+                        const SizedBox(height: 10),
+                        button,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(child: field),
+                      const SizedBox(width: 12),
+                      button,
+                    ],
+                  );
+                }),
               ],
             ),
           ),
