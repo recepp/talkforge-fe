@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -52,7 +53,20 @@ func main() {
 		if backendURL == "" {
 			backendURL = "http://localhost:8080/api/v1" // Fallback
 		}
-		w.Write([]byte(`{"base_url":"` + backendURL + `"}`))
+		// Empty until a real Google OAuth Web Client ID is configured; the
+		// frontend hides the Google sign-in button when this is blank.
+		googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+
+		config := map[string]string{
+			"base_url":         backendURL,
+			"google_client_id": googleClientID,
+		}
+		encoded, err := json.Marshal(config)
+		if err != nil {
+			http.Error(w, "failed to encode config", http.StatusInternalServerError)
+			return
+		}
+		w.Write(encoded)
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

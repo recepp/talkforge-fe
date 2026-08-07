@@ -172,6 +172,26 @@ class ApiService {
     return data;
   }
 
+  // Authenticate user with a Google ID token
+  static Future<Map<String, dynamic>> googleLogin(String googleToken) async {
+    final response = await http.post(
+      Uri.parse('${Constants.baseUrl}/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'google_token': googleToken}),
+    );
+    final data = await _parseResponse(response, endpoint: '/auth/google') as Map<String, dynamic>;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', data['token'] ?? '');
+    await prefs.setString('user_email', data['email'] ?? '');
+    await prefs.setString('user_nickname', data['nickname'] ?? '');
+    await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_language', data['language'] ?? 'tr');
+    await prefs.setInt('user_id', data['user_id'] ?? 0);
+
+    return data;
+  }
+
   // Register a new user
   static Future<Map<String, dynamic>> signup(String email, String password, String nickname) async {
     final response = await http.post(

@@ -1,8 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../constants.dart';
 import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
+import '../widgets/google_signin_button.dart';
+
+// Testing (see BE #14 / FE #4 issue comments) found that constructing
+// GoogleSignIn on web crashes the whole app to a blank screen in this
+// environment when Google's GIS script can't be reached (network policy,
+// ad blocker, ...) — the failure happens inside the plugin's own JS interop
+// layer and survives try/catch, runZonedGuarded, and deferring past the
+// first frame. That test environment couldn't reach google's domains at
+// all, so it's unclear whether this reproduces with real network access —
+// this needs verifying against a real GOOGLE_CLIENT_ID before enabling.
+// Flip this to true only after confirming the login screen stays usable
+// even when Google's script fails to load (throttle/block it and reload).
+const bool _kGoogleSignInEnabled = false;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,11 +36,66 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSignUp = false;
   String _errorMessage = '';
 
+  GoogleSignIn? _googleSignIn;
+  StreamSubscription<GoogleSignInAccount?>? _googleUserSub;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_kGoogleSignInEnabled && Constants.googleClientId.isNotEmpty) {
+      // Deferred past the first frame: constructing GoogleSignIn kicks off
+      // Google's GIS script injection immediately, and if that fails
+      // (network issue, blocked domain, ad blocker, ...) it can throw
+      // before the engine reports its first paint, leaving a blank screen.
+      // Waiting for the first frame means the login form is already on
+      // screen before this risk is taken.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _initGoogleSignIn());
+    }
+  }
+
+  void _initGoogleSignIn() {
+    try {
+      final googleSignIn = GoogleSignIn(clientId: Constants.googleClientId);
+      _googleUserSub = googleSignIn.onCurrentUserChanged.listen(
+        _onGoogleUserChanged,
+        onError: (Object _) {
+          if (mounted) setState(() => _googleSignIn = null);
+        },
+      );
+      if (mounted) setState(() => _googleSignIn = googleSignIn);
+    } catch (_) {
+      if (mounted) setState(() => _googleSignIn = null);
+    }
+  }
+
+  Future<void> _onGoogleUserChanged(GoogleSignInAccount? account) async {
+    if (account == null) return;
+    final idToken = (await account.authentication).idToken;
+    if (idToken == null) {
+      setState(() => _errorMessage = 'Google girişi başarısız: kimlik jetonu alınamadı.');
+      return;
+    }
+    await _submitGoogleToken(idToken);
+  }
+
+  Future<void> _submitGoogleToken(String idToken) async {
+    setState(() => _errorMessage = '');
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    try {
+      await authProvider.loginWithGoogle(idToken);
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _nicknameController.dispose();
+    _googleUserSub?.cancel();
     super.dispose();
   }
 
@@ -247,6 +318,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                   ),
+
+                  if (_googleSignIn != null) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: Color(0xFF334155))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            AppTranslations.tr('or_divider', lang),
+                            style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 12),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: Color(0xFF334155))),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Center(child: buildGoogleSignInButton(_googleSignIn!)),
+                  ],
+
                   const SizedBox(height: 16),
 
                   // Toggle Button

@@ -5,6 +5,11 @@ class Constants {
   // Default fallback URL
   static String baseUrl = 'http://localhost:8080/api/v1';
 
+  // Google OAuth Web Client ID, loaded at runtime from /config.json. Empty
+  // until a real client ID is configured server-side (GOOGLE_CLIENT_ID env),
+  // in which case the Google sign-in button stays hidden.
+  static String googleClientId = '';
+
   static Future<void> loadConfig() async {
     try {
       final response = await http.get(Uri.parse('/config.json'));
@@ -12,6 +17,9 @@ class Constants {
         final data = jsonDecode(response.body);
         if (data['base_url'] != null && data['base_url'].toString().isNotEmpty) {
           baseUrl = data['base_url'].toString();
+        }
+        if (data['google_client_id'] != null) {
+          googleClientId = data['google_client_id'].toString();
         }
       }
     } catch (e) {

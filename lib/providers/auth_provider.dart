@@ -89,6 +89,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Login with a Google ID token
+  Future<void> loginWithGoogle(String googleToken) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = await ApiService.googleLogin(googleToken);
+      _isAuthenticated = true;
+      _email = data['email'];
+      _nickname = data['nickname'];
+      _role = data['role'];
+      _language = data['language'] ?? 'tr';
+    } catch (e) {
+      _isAuthenticated = false;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Update Language Preference
   Future<void> updateLanguage(String newLang) async {
     try {

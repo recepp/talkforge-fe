@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -7,17 +8,27 @@ import 'services/api_service.dart';
 
 import 'constants.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Constants.loadConfig();
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ],
-      child: const TalkForgeApp(),
-    ),
-  );
+void main() {
+  // Third-party plugins (e.g. Google Sign-In's web JS interop) can throw
+  // outside the widget build/layout/paint phases, as unhandled Future
+  // errors. Left uncaught, those propagate to the zone and can take down
+  // the whole app instead of just the feature that failed. Catch them here
+  // so a single misbehaving integration degrades instead of blanking the
+  // screen for everyone.
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Constants.loadConfig();
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ],
+        child: const TalkForgeApp(),
+      ),
+    );
+  }, (error, stack) {
+    debugPrint('Unhandled error: $error\n$stack');
+  });
 }
 
 class TalkForgeApp extends StatelessWidget {
