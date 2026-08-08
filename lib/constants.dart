@@ -18,7 +18,7 @@ class Constants {
         if (data['base_url'] != null && data['base_url'].toString().isNotEmpty) {
           baseUrl = data['base_url'].toString();
         }
-        if (data['google_client_id'] != null) {
+        if (data['google_client_id'] != null && data['google_client_id'].toString().isNotEmpty) {
           googleClientId = data['google_client_id'].toString();
         }
       }
