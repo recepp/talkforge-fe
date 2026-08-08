@@ -15,11 +15,13 @@ class Constants {
       final response = await http.get(Uri.parse('/config.json'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['base_url'] != null && data['base_url'].toString().isNotEmpty) {
-          baseUrl = data['base_url'].toString();
-        }
-        if (data['google_client_id'] != null && data['google_client_id'].toString().isNotEmpty) {
-          googleClientId = data['google_client_id'].toString();
+        if (data is Map) {
+          if (data['base_url'] != null && data['base_url'].toString().isNotEmpty) {
+            baseUrl = data['base_url'].toString();
+          }
+          if (data['google_client_id'] != null && data['google_client_id'].toString().isNotEmpty) {
+            googleClientId = data['google_client_id'].toString();
+          }
         }
       }
     } catch (e) {

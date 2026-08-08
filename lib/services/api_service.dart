@@ -121,6 +121,9 @@ class ApiService {
     }
 
     if (statusCode >= 200 && statusCode < 300) {
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
       return decoded;
     } else if (statusCode == 401 && endpoint != '/auth/login' && endpoint != '/auth/signup') {
       await handle401();
