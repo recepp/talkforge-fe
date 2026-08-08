@@ -19,7 +19,7 @@ import '../widgets/google_signin_button.dart';
 // this needs verifying against a real GOOGLE_CLIENT_ID before enabling.
 // Flip this to true only after confirming the login screen stays usable
 // even when Google's script fails to load (throttle/block it and reload).
-const bool _kGoogleSignInEnabled = false;
+const bool _kGoogleSignInEnabled = true;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,14 +57,19 @@ class _LoginScreenState extends State<LoginScreen> {
   void _initGoogleSignIn() {
     try {
       final googleSignIn = GoogleSignIn(clientId: Constants.googleClientId);
-      _googleUserSub = googleSignIn.onCurrentUserChanged.listen(
-        _onGoogleUserChanged,
-        onError: (Object _) {
-          if (mounted) setState(() => _googleSignIn = null);
-        },
-      );
+      try {
+        _googleUserSub = googleSignIn.onCurrentUserChanged.listen(
+          _onGoogleUserChanged,
+          onError: (Object _) {
+            if (mounted) setState(() => _googleSignIn = null);
+          },
+        );
+      } catch (e) {
+        debugPrint('Google Sign In stream listen error: $e');
+      }
       if (mounted) setState(() => _googleSignIn = googleSignIn);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Google Sign In init error: $e');
       if (mounted) setState(() => _googleSignIn = null);
     }
   }

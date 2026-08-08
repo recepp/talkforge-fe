@@ -8,7 +8,7 @@ class Constants {
   // Google OAuth Web Client ID, loaded at runtime from /config.json. Empty
   // until a real client ID is configured server-side (GOOGLE_CLIENT_ID env),
   // in which case the Google sign-in button stays hidden.
-  static String googleClientId = '';
+  static String googleClientId = '937396352861-9gv9rhbvi2a2lrd3p1elvf4q1ld20boc.apps.googleusercontent.com';
 
   static Future<void> loadConfig() async {
     try {
