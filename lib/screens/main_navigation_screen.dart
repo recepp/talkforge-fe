@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../theme/app_theme.dart';
 import 'talks_screen.dart';
 import 'rooms_screen.dart';
@@ -30,6 +31,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Provider.of<AuthProvider>(context); // rebuild on language changes
     final c = context.colors;
     final content = IndexedStack(index: _currentIndex, children: _screens);
 
@@ -71,6 +73,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final authProvider = Provider.of<AuthProvider>(context);
+    final lang = authProvider.language;
     final nickname = authProvider.nickname ?? '';
 
     return Container(
@@ -107,7 +110,7 @@ class _Sidebar extends StatelessWidget {
           _NavItem(
             icon: Icons.forum_outlined,
             filledIcon: Icons.forum,
-            label: 'Konuşmalarım',
+            label: AppTranslations.tr('my_talks', lang),
             active: currentIndex == 0,
             onTap: () => onTap(0),
           ),
@@ -115,7 +118,7 @@ class _Sidebar extends StatelessWidget {
           _NavItem(
             icon: Icons.groups_outlined,
             filledIcon: Icons.groups,
-            label: 'Odalar',
+            label: AppTranslations.tr('rooms', lang),
             active: currentIndex == 1,
             onTap: () => onTap(1),
           ),
@@ -123,7 +126,7 @@ class _Sidebar extends StatelessWidget {
           _NavItem(
             icon: Icons.account_circle_outlined,
             filledIcon: Icons.account_circle,
-            label: 'Profil',
+            label: AppTranslations.tr('my_profile', lang),
             active: currentIndex == 2,
             onTap: () => onTap(2),
           ),
@@ -133,7 +136,7 @@ class _Sidebar extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onNewTalk,
               icon: const Icon(Icons.add, size: 18),
-              label: Text('Yeni Konuşma', style: GoogleFonts.schibstedGrotesk(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              label: Text(AppTranslations.tr('new_talk', lang), style: GoogleFonts.schibstedGrotesk(fontSize: 13.5, fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: c.acc,
                 foregroundColor: Colors.white,
@@ -237,6 +240,7 @@ class _MobileBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final lang = Provider.of<AuthProvider>(context).language;
     return DecoratedBox(
       decoration: BoxDecoration(color: c.surf, border: Border(top: BorderSide(color: c.bordSoft))),
       child: SafeArea(
@@ -246,21 +250,21 @@ class _MobileBottomNav extends StatelessWidget {
             _MobileNavItem(
               icon: Icons.forum_outlined,
               filledIcon: Icons.forum,
-              label: 'Konuşmalar',
+              label: AppTranslations.tr('my_talks', lang),
               active: currentIndex == 0,
               onTap: () => onTap(0),
             ),
             _MobileNavItem(
               icon: Icons.groups_outlined,
               filledIcon: Icons.groups,
-              label: 'Odalar',
+              label: AppTranslations.tr('rooms', lang),
               active: currentIndex == 1,
               onTap: () => onTap(1),
             ),
             _MobileNavItem(
               icon: Icons.account_circle_outlined,
               filledIcon: Icons.account_circle,
-              label: 'Profil',
+              label: AppTranslations.tr('my_profile', lang),
               active: currentIndex == 2,
               onTap: () => onTap(2),
             ),
@@ -323,6 +327,7 @@ class _NewTalkFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final lang = Provider.of<AuthProvider>(context).language;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -331,7 +336,7 @@ class _NewTalkFab extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: const Icon(Icons.add, size: 20),
-        label: Text('Yeni Konuşma', style: GoogleFonts.schibstedGrotesk(fontSize: 13.5, fontWeight: FontWeight.w700)),
+        label: Text(AppTranslations.tr('new_talk', lang), style: GoogleFonts.schibstedGrotesk(fontSize: 13.5, fontWeight: FontWeight.w700)),
         style: ElevatedButton.styleFrom(
           backgroundColor: c.acc,
           foregroundColor: Colors.white,
@@ -343,3 +348,4 @@ class _NewTalkFab extends StatelessWidget {
     );
   }
 }
+

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
@@ -108,6 +111,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
 
   Future<void> _summarize() async {
     if (_messages.isEmpty || _isSummarizing) return;
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
 
     setState(() => _isSummarizing = true);
     try {
@@ -118,7 +122,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Tartışma özetlendi, yeni versiyon üretiliyor.'),
+            content: Text(AppTranslations.tr('discussion_summarized', lang)),
             backgroundColor: c.acc,
           ),
         );
@@ -136,7 +140,12 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<AuthProvider>(context).language;
     final c = context.colors;
+    final titleText = _roomName != null && _roomName!.isNotEmpty
+        ? '${AppTranslations.tr('discussion', lang)} · $_roomName'
+        : AppTranslations.tr('discussion', lang);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -152,7 +161,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
               Icon(Icons.forum_outlined, size: 18, color: c.accTx),
               const SizedBox(width: 8),
               Text(
-                _roomName != null && _roomName!.isNotEmpty ? 'Tartışma · $_roomName' : 'Tartışma',
+                titleText,
                 style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
@@ -167,7 +176,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Text(
-                  'Henüz mesaj yok. Ekiple bu versiyon hakkında konuşmaya başlayın.',
+                  AppTranslations.tr('discussion_no_messages', lang),
                   style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 12),
                 ),
               )
@@ -195,7 +204,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (m['nickname'] as String?)?.isNotEmpty == true ? m['nickname'] as String : 'Kullanıcı',
+                                (m['nickname'] as String?)?.isNotEmpty == true ? m['nickname'] as String : AppTranslations.tr('user', lang),
                                 style: GoogleFonts.schibstedGrotesk(color: c.accTx, fontSize: 11, fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 2),
@@ -223,7 +232,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                     maxLines: 3,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
-                      hintText: 'Bir mesaj yazın...',
+                      hintText: AppTranslations.tr('type_message_hint', lang),
                       hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                       filled: true,
                       fillColor: c.surf2,
@@ -250,7 +259,7 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
                   icon: _isSummarizing
                       ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accTx))
                       : const Icon(Icons.auto_awesome_rounded, size: 16),
-                  label: const Text('Tartışmayı Özetle ve Yeni Versiyon Üret'),
+                  label: Text(AppTranslations.tr('summarize_discussion', lang)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: c.accTx,
                     side: BorderSide(color: c.bord),
@@ -266,3 +275,4 @@ class _DiscussionPanelState extends State<DiscussionPanel> {
     );
   }
 }
+

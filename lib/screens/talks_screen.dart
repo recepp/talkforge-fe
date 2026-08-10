@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 import 'create_talk_dialog.dart';
 import 'talk_detail_screen.dart';
 
-const _filterNames = ['Tümü', 'Hazır', 'Üretiliyor', 'Paylaşımlı'];
+const _filterKeys = ['filter_all', 'filter_ready', 'filter_generating', 'filter_shared'];
 
 class TalksScreen extends StatefulWidget {
   const TalksScreen({super.key});
@@ -23,7 +23,7 @@ class TalksScreenState extends State<TalksScreen> {
   bool _isLoading = true;
   String _error = '';
   Timer? _pollTimer;
-  String _filter = 'Tümü';
+  String _filterKey = 'filter_all';
   String _search = '';
 
   /// Public so the app shell (sidebar button / mobile FAB) can trigger it.
@@ -162,7 +162,7 @@ class TalksScreenState extends State<TalksScreen> {
 
     if (confirmed == true) {
       try {
-        await ApiService.deleteTalkRequest(id);
+        await ApiService.deleteTalkRequest(id, cascade: true);
         if (mounted) {
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -258,23 +258,24 @@ class TalksScreenState extends State<TalksScreen> {
     final place = talk['place'] as String? ?? '';
     final duration = talk['duration'] ?? 0;
     final status = talk['status'] as String? ?? '';
+    final minLabel = AppTranslations.tr('min', lang);
     final parts = <String>[
       if (typeLabel.isNotEmpty) typeLabel,
       if (place.isNotEmpty) place,
-      '$duration dk',
+      '$duration $minLabel',
     ];
     switch (status) {
       case 'completed':
-        parts.add('${_countVersions(talk)} sürüm');
+        parts.add('${_countVersions(talk)} ${AppTranslations.tr('version_suffix', lang)}');
         break;
       case 'processing':
-        parts.add('üretiliyor…');
+        parts.add(AppTranslations.tr('status_generating', lang).toLowerCase());
         break;
       case 'pending':
-        parts.add('sırada');
+        parts.add(AppTranslations.tr('in_queue', lang));
         break;
       case 'failed':
-        parts.add('başarısız');
+        parts.add(AppTranslations.tr('failed', lang));
         break;
     }
     return parts.join(' · ');
@@ -283,12 +284,12 @@ class TalksScreenState extends State<TalksScreen> {
   bool _matchesFilter(Map<String, dynamic> t) {
     final status = t['status'] as String? ?? '';
     final shared = t['room_id'] != null;
-    switch (_filter) {
-      case 'Hazır':
+    switch (_filterKey) {
+      case 'filter_ready':
         return status == 'completed';
-      case 'Üretiliyor':
+      case 'filter_generating':
         return status == 'processing' || status == 'pending';
-      case 'Paylaşımlı':
+      case 'filter_shared':
         return shared;
       default:
         return true;
@@ -432,7 +433,7 @@ class TalksScreenState extends State<TalksScreen> {
                               decoration: InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
-                                hintText: 'Konuşma ara...',
+                                hintText: AppTranslations.tr('search', lang),
                                 hintStyle: GoogleFonts.schibstedGrotesk(fontSize: 13, color: c.tx3),
                               ),
                             ),
@@ -447,11 +448,12 @@ class TalksScreenState extends State<TalksScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _filterNames.map((f) {
-                  final active = _filter == f;
+                children: _filterKeys.map((fKey) {
+                  final active = _filterKey == fKey;
+                  final label = AppTranslations.tr(fKey, lang);
                   return InkWell(
                     borderRadius: BorderRadius.circular(99),
-                    onTap: () => setState(() => _filter = f),
+                    onTap: () => setState(() => _filterKey = fKey),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                       decoration: BoxDecoration(
@@ -460,7 +462,7 @@ class TalksScreenState extends State<TalksScreen> {
                         border: active ? null : Border.all(color: c.bord),
                       ),
                       child: Text(
-                        f,
+                        label,
                         style: GoogleFonts.schibstedGrotesk(
                           fontSize: 12,
                           fontWeight: active ? FontWeight.w600 : FontWeight.w500,
@@ -484,7 +486,7 @@ class TalksScreenState extends State<TalksScreen> {
                         padding: const EdgeInsets.all(36.0),
                         child: Center(
                           child: Text(
-                            'Aramanızla eşleşen konuşma yok.',
+                            AppTranslations.tr('no_matching_talks', lang),
                             style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                           ),
                         ),
@@ -494,7 +496,7 @@ class TalksScreenState extends State<TalksScreen> {
                           final id = talk['id'] as int;
                           final status = talk['status'] as String? ?? '';
                           final statusColor = _statusColor(status);
-                          final topic = talk['topic'] as String? ?? 'Konuşma Hazırlığı';
+                          final topic = talk['topic'] as String? ?? AppTranslations.tr('new_talk', lang);
                           final isShared = talk['room_id'] != null;
                           final isFailed = status == 'failed';
 
@@ -559,7 +561,7 @@ class TalksScreenState extends State<TalksScreen> {
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        'Paylaşımlı',
+                                        AppTranslations.tr('shared', lang),
                                         style: GoogleFonts.schibstedGrotesk(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
@@ -580,12 +582,20 @@ class TalksScreenState extends State<TalksScreen> {
                                         minimumSize: Size.zero,
                                       ),
                                       child: Text(
-                                        'Yeniden Dene',
+                                        AppTranslations.tr('retry', lang),
                                         style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ],
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: Icon(Icons.delete_outline_rounded, size: 19, color: c.tx3),
+                                    hoverColor: AppColors.dangerTx.withValues(alpha: 0.15),
+                                    splashRadius: 20,
+                                    tooltip: AppTranslations.tr('delete', lang),
+                                    onPressed: () => _deleteTalk(id, topic),
+                                  ),
+                                  const SizedBox(width: 2),
                                   Icon(Icons.chevron_right, size: 18, color: c.tx3),
                                 ],
                               ),
@@ -601,3 +611,4 @@ class TalksScreenState extends State<TalksScreen> {
     );
   }
 }
+
