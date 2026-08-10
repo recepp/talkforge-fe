@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:google_sign_in_web/google_sign_in_web.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
 
 /// Web implementation: renders Google's own GIS button. This is required to
@@ -9,13 +8,29 @@ import 'package:google_sign_in_web/web_only.dart' as web;
 /// In web release mode, JS interop / minified cast issues or network blocks
 /// can throw inside `web.renderButton`. We catch those errors so the login
 /// screen never crashes to a blank grey screen.
-Widget buildGoogleSignInButton(GoogleSignIn googleSignIn) {
-  return GoogleSignInButtonWeb(googleSignIn: googleSignIn);
+Widget buildGoogleSignInButton(
+  GoogleSignIn googleSignIn, {
+  required void Function(String token) onTokenReceived,
+  void Function(String error)? onError,
+}) {
+  return GoogleSignInButtonWeb(
+    googleSignIn: googleSignIn,
+    onTokenReceived: onTokenReceived,
+    onError: onError,
+  );
 }
 
 class GoogleSignInButtonWeb extends StatefulWidget {
   final GoogleSignIn googleSignIn;
-  const GoogleSignInButtonWeb({super.key, required this.googleSignIn});
+  final void Function(String token) onTokenReceived;
+  final void Function(String error)? onError;
+
+  const GoogleSignInButtonWeb({
+    super.key,
+    required this.googleSignIn,
+    required this.onTokenReceived,
+    this.onError,
+  });
 
   @override
   State<GoogleSignInButtonWeb> createState() => _GoogleSignInButtonWebState();
@@ -88,7 +103,7 @@ class _GoogleSignInButtonWebState extends State<GoogleSignInButtonWeb> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
+                  const Text(
                     'Google ile Giriş Yap',
                     style: TextStyle(
                       fontSize: 14,
@@ -108,13 +123,16 @@ class _GoogleSignInButtonWebState extends State<GoogleSignInButtonWeb> {
       final account = await widget.googleSignIn.signIn();
       if (account != null) {
         final auth = await account.authentication;
-        final idToken = auth.idToken;
-        if (idToken != null && idToken.isNotEmpty) {
-          debugPrint('Successfully signed in with Google custom button');
+        final token = auth.idToken ?? auth.accessToken;
+        if (token != null && token.isNotEmpty) {
+          widget.onTokenReceived(token);
+        } else {
+          widget.onError?.call('Google token alırken bir hata oluştu.');
         }
       }
     } catch (e) {
       debugPrint('Custom Google sign-in error: $e');
+      widget.onError?.call(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

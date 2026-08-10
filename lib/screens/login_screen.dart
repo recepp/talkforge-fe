@@ -76,13 +76,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _onGoogleUserChanged(GoogleSignInAccount? account) async {
     if (account == null) return;
-    final idToken = (await account.authentication).idToken;
-    if (idToken == null) {
+    final auth = await account.authentication;
+    final token = auth.idToken ?? auth.accessToken;
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
       final lang = Provider.of<AuthProvider>(context, listen: false).language;
       setState(() => _errorMessage = AppTranslations.tr('google_signin_failed', lang));
       return;
     }
-    await _submitGoogleToken(idToken);
+    await _submitGoogleToken(token);
   }
 
   Future<void> _submitGoogleToken(String idToken) async {
@@ -303,7 +305,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    Center(child: buildGoogleSignInButton(_googleSignIn!)),
+                    Center(
+                      child: buildGoogleSignInButton(
+                        _googleSignIn!,
+                        onTokenReceived: (token) => _submitGoogleToken(token),
+                        onError: (err) {
+                          if (mounted) setState(() => _errorMessage = err);
+                        },
+                      ),
+                    ),
                   ],
 
                   TextButton(
