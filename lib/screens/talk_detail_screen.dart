@@ -51,6 +51,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   bool _isReloading = false;
   bool _isSubmitting = false;
   bool _viewDiff = false;
+  bool _isVersionHistoryExpanded = false;
   String _errorMessage = '';
 
   List<String> _getQuickSuggestions(String lang) {
@@ -958,157 +959,539 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   Widget _buildVersionPillsRow(List<FlatTreeNode> flatNodes, String lang, AppColors c) {
+    if (_selectedNode == null) return const SizedBox.shrink();
+
     final parentId = _selectedNode?['parent_id'];
     final parentNode = parentId != null ? _findNodeInTree(_talkTree, parentId as int) : null;
     final selHasParent = parentNode != null && _selectedNode?['status'] == 'completed';
+    final latestNode = _getLatestNode(_talkTree);
+    final latestId = (latestNode['id'] as num?)?.toInt() ?? 0;
+    final selectedId = (_selectedNode!['id'] as num?)?.toInt() ?? 0;
 
-    final sorted = List<FlatTreeNode>.from(flatNodes)
-      ..sort((a, b) {
-        final idA = (a.node['id'] as num?)?.toInt() ?? 0;
-        final idB = (b.node['id'] as num?)?.toInt() ?? 0;
-        return idA.compareTo(idB);
-      });
+    // Pre-order tree list for hierarchical display
+    final treeList = _flattenTree(_talkTree, 0);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: sorted.map((flat) {
-              final node = flat.node;
-              final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
-              final label = '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)}';
-              return InkWell(
-                borderRadius: BorderRadius.circular(99),
-                onTap: () => _selectNode(node),
-                onLongPress: () => _deleteVersionNode(node),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: isSelected ? c.accSoft : c.surf,
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: isSelected ? c.acc : c.bord),
-                  ),
-                  child: Text(
-                    label,
-                    style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? c.accTx : c.tx2),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: c.surf,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isVersionHistoryExpanded ? c.acc.withValues(alpha: 0.4) : c.bordSoft,
+          width: 1,
         ),
-        if (selHasParent) ...[
-          const SizedBox(width: 8),
-          InkWell(
-            borderRadius: BorderRadius.circular(99),
-            onTap: () => setState(() => _viewDiff = !_viewDiff),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: _viewDiff ? c.acc : c.surf,
-                borderRadius: BorderRadius.circular(99),
-                border: _viewDiff ? null : Border.all(color: c.bord),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.difference_outlined, size: 14, color: _viewDiff ? Colors.white : c.tx2),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Diff',
-                    style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: _viewDiff ? Colors.white : c.tx2),
-                  ),
-                ],
-              ),
+        boxShadow: [
+          if (_isVersionHistoryExpanded)
+            BoxShadow(
+              color: c.acc.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
-          ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildVersionRail(List<FlatTreeNode> flatNodes, String lang, AppColors c) {
-    final sorted = List<FlatTreeNode>.from(flatNodes)
-      ..sort((a, b) {
-        final idA = (a.node['id'] as num?)?.toInt() ?? 0;
-        final idB = (b.node['id'] as num?)?.toInt() ?? 0;
-        return idB.compareTo(idA);
-      });
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            'SÜRÜM GEÇMİŞİ',
-            style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: c.tx3),
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...sorted.map((flat) {
-          final node = flat.node;
-          final isSelected = _selectedNode != null && _selectedNode!['id'] == node['id'];
-          final isRoot = node['parent_id'] == null;
-          final title = isRoot
-              ? '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)} · Kök'
-              : '${AppTranslations.tr('version', lang)} ${_getVersionLabel(node)}';
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => _selectNode(node),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isSelected ? c.accSoft : c.surf,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isSelected ? c.acc : c.bordSoft),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Crisp Header Bar (Summary View)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Left: Active version badge & Diff button
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w700, color: isSelected ? c.tx : c.tx2),
-                          ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(99),
+                      onTap: () {
+                        if (!_isVersionHistoryExpanded && treeList.length > 1) {
+                          setState(() => _isVersionHistoryExpanded = true);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: c.accSoft,
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: c.acc),
                         ),
-                        Text(
-                          _relativeTime(node['created_at']),
-                          style: GoogleFonts.schibstedGrotesk(fontSize: 10.5, color: c.tx3),
-                        ),
-                        if (flatNodes.length > 1)
-                          InkWell(
-                            onTap: () => _deleteVersionNode(node),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Icon(Icons.delete_outline_rounded, size: 15, color: c.tx3),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.layers_rounded, size: 14, color: c.accTx),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${AppTranslations.tr('version', lang)} ${_getVersionLabel(_selectedNode!)}',
+                              style: GoogleFonts.schibstedGrotesk(fontSize: 12.5, fontWeight: FontWeight.bold, color: c.accTx),
                             ),
-                          ),
-                      ],
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: c.acc,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                AppTranslations.tr('active_version', lang),
+                                style: GoogleFonts.schibstedGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                            ),
+                            if (selectedId == latestId && treeList.length > 1) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.completed,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  AppTranslations.tr('latest_version', lang),
+                                  style: GoogleFonts.schibstedGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                    if (!isRoot && node['instruction'] != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '"${node['instruction']}"',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontStyle: FontStyle.italic, color: c.tx3),
+                    if (selHasParent) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(99),
+                        onTap: () => setState(() => _viewDiff = !_viewDiff),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _viewDiff ? c.acc : c.bg,
+                            borderRadius: BorderRadius.circular(99),
+                            border: _viewDiff ? null : Border.all(color: c.bord),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _viewDiff ? Icons.difference : Icons.difference_outlined,
+                                size: 14,
+                                color: _viewDiff ? Colors.white : c.tx2,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Diff',
+                                style: GoogleFonts.schibstedGrotesk(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _viewDiff ? Colors.white : c.tx2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
+                if (treeList.length > 1)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => setState(() => _isVersionHistoryExpanded = !_isVersionHistoryExpanded),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _isVersionHistoryExpanded ? c.accSoft : c.bg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _isVersionHistoryExpanded ? c.acc : c.bord),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.account_tree_outlined,
+                            size: 15,
+                            color: _isVersionHistoryExpanded ? c.accTx : c.tx2,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isVersionHistoryExpanded
+                                ? AppTranslations.tr('collapse_version_history', lang)
+                                : '${AppTranslations.tr('show_version_history', lang)} (${treeList.length})',
+                            style: GoogleFonts.schibstedGrotesk(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _isVersionHistoryExpanded ? c.accTx : c.tx,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          AnimatedRotation(
+                            duration: const Duration(milliseconds: 200),
+                            turns: _isVersionHistoryExpanded ? 0.5 : 0.0,
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: _isVersionHistoryExpanded ? c.accTx : c.tx2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Expanded Content (Timeline Tree Accordion Body)
+          if (_isVersionHistoryExpanded && treeList.length > 1) ...[
+            Divider(color: c.bordSoft, height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.account_tree_rounded, size: 16, color: c.accTx),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${AppTranslations.tr('version_tree', lang).toUpperCase()} (${treeList.length})',
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6, color: c.tx3),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  ...List.generate(treeList.length, (index) {
+                    final flat = treeList[index];
+                    final node = flat.node;
+                    final depth = flat.depth;
+                    final nodeId = (node['id'] as num?)?.toInt() ?? 0;
+                    final isSelected = selectedId == nodeId;
+                    final isLatest = latestId == nodeId;
+                    final isRoot = node['parent_id'] == null;
+                    final versionLabel = _getVersionLabel(node);
+                    final isLast = index == treeList.length - 1;
+
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left Tree Branch Connector / Indentation Guide
+                          SizedBox(
+                            width: (depth * 20.0 + 24.0).clamp(24.0, 120.0),
+                            child: CustomPaint(
+                              painter: _TreeBranchPainter(
+                                depth: depth,
+                                isRoot: isRoot,
+                                isLast: isLast,
+                                isSelected: isSelected,
+                                color: c.acc,
+                                lineTileColor: c.bord.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          ),
+                          // Version Card Content
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _selectNode(node),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? c.accSoft : c.bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected ? c.acc : c.bordSoft,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                    boxShadow: [
+                                      if (isSelected)
+                                        BoxShadow(
+                                          color: c.acc.withValues(alpha: 0.12),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${AppTranslations.tr('version', lang)} $versionLabel',
+                                            style: GoogleFonts.schibstedGrotesk(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: isSelected ? c.accTx : c.tx,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (isSelected)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: c.acc,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                AppTranslations.tr('active_version', lang),
+                                                style: GoogleFonts.schibstedGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                              ),
+                                            ),
+                                          if (isLatest) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.completed,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                AppTranslations.tr('latest_version', lang),
+                                                style: GoogleFonts.schibstedGrotesk(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                              ),
+                                            ),
+                                          ],
+                                          if (isRoot) ...[
+                                            const SizedBox(width: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: c.surf,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: c.bord),
+                                              ),
+                                              child: Text(
+                                                AppTranslations.tr('root_version', lang),
+                                                style: GoogleFonts.schibstedGrotesk(fontSize: 9.5, fontWeight: FontWeight.w600, color: c.tx2),
+                                              ),
+                                            ),
+                                          ],
+                                          const Spacer(),
+                                          Text(
+                                            _relativeTime(node['created_at']),
+                                            style: GoogleFonts.schibstedGrotesk(fontSize: 10.5, color: c.tx3),
+                                          ),
+                                          if (treeList.length > 1)
+                                            InkWell(
+                                              onTap: () => _deleteVersionNode(node),
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(left: 8),
+                                                child: Icon(Icons.delete_outline_rounded, size: 15, color: c.tx3),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      if (node['instruction'] != null && (node['instruction'] as String).isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? c.acc.withValues(alpha: 0.1) : c.surf,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '💬 "${node['instruction']}"',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.schibstedGrotesk(
+                                              fontSize: 11.5,
+                                              fontStyle: FontStyle.italic,
+                                              color: isSelected ? c.tx : c.tx2,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _isVersionHistoryExpanded = false),
+                      icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
+                      label: Text(
+                        AppTranslations.tr('collapse_version_history', lang),
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: c.tx2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVersionRail(List<FlatTreeNode> flatNodes, String lang, AppColors c) {
+    final treeList = _flattenTree(_talkTree, 0);
+    final latestNode = _getLatestNode(_talkTree);
+    final latestId = (latestNode['id'] as num?)?.toInt() ?? 0;
+    final selectedId = (_selectedNode?['id'] as num?)?.toInt() ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.account_tree_rounded, size: 16, color: c.accTx),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${AppTranslations.tr('version_tree', lang).toUpperCase()} (${treeList.length})',
+                style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: c.tx3),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(treeList.length, (index) {
+          final flat = treeList[index];
+          final node = flat.node;
+          final depth = flat.depth;
+          final nodeId = (node['id'] as num?)?.toInt() ?? 0;
+          final isSelected = selectedId == nodeId;
+          final isLatest = latestId == nodeId;
+          final isRoot = node['parent_id'] == null;
+          final versionLabel = _getVersionLabel(node);
+          final isLast = index == treeList.length - 1;
+
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: (depth * 14.0 + 18.0).clamp(18.0, 70.0),
+                  child: CustomPaint(
+                    painter: _TreeBranchPainter(
+                      depth: depth,
+                      isRoot: isRoot,
+                      isLast: isLast,
+                      isSelected: isSelected,
+                      color: c.acc,
+                      lineTileColor: c.bord.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _selectNode(node),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? c.accSoft : c.surf,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isSelected ? c.acc : c.bordSoft, width: isSelected ? 1.5 : 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text(
+                                        '${AppTranslations.tr('version', lang)} $versionLabel',
+                                        style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w700, color: isSelected ? c.accTx : c.tx),
+                                      ),
+                                      if (isSelected)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: c.acc,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            AppTranslations.tr('active_version', lang),
+                                            style: GoogleFonts.schibstedGrotesk(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                                          ),
+                                        ),
+                                      if (isLatest)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.completed,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            AppTranslations.tr('latest_version', lang),
+                                            style: GoogleFonts.schibstedGrotesk(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                                          ),
+                                        ),
+                                      if (isRoot)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: c.surf,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: c.bord),
+                                          ),
+                                          child: Text(
+                                            AppTranslations.tr('root_version', lang),
+                                            style: GoogleFonts.schibstedGrotesk(fontSize: 9, fontWeight: FontWeight.w600, color: c.tx2),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  _relativeTime(node['created_at']),
+                                  style: GoogleFonts.schibstedGrotesk(fontSize: 10, color: c.tx3),
+                                ),
+                                if (treeList.length > 1)
+                                  InkWell(
+                                    onTap: () => _deleteVersionNode(node),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(left: 6),
+                                      child: Icon(Icons.delete_outline_rounded, size: 15, color: c.tx3),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            if (node['instruction'] != null && (node['instruction'] as String).isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '💬 "${node['instruction']}"',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, fontStyle: FontStyle.italic, color: c.tx3),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }),
@@ -1442,5 +1825,68 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
         ),
       ],
     );
+  }
+}
+
+class _TreeBranchPainter extends CustomPainter {
+  final int depth;
+  final bool isRoot;
+  final bool isLast;
+  final bool isSelected;
+  final Color color;
+  final Color lineTileColor;
+
+  _TreeBranchPainter({
+    required this.depth,
+    required this.isRoot,
+    required this.isLast,
+    required this.isSelected,
+    required this.color,
+    required this.lineTileColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = lineTileColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final dotPaint = Paint()
+      ..color = isSelected ? color : lineTileColor
+      ..style = PaintingStyle.fill;
+
+    final cx = size.width - 10;
+    final cy = 18.0;
+
+    if (depth > 0) {
+      final path = Path();
+      path.moveTo(6.0, 0);
+      path.lineTo(6.0, cy - 4);
+      path.quadraticBezierTo(6.0, cy, 12.0, cy);
+      path.lineTo(cx - 3, cy);
+      canvas.drawPath(path, linePaint);
+    }
+
+    if (!isLast) {
+      canvas.drawLine(const Offset(6.0, 0), Offset(6.0, size.height), linePaint);
+    }
+
+    // Draw node dot
+    canvas.drawCircle(Offset(cx, cy), isSelected ? 4.5 : 3.0, dotPaint);
+    if (isSelected) {
+      final ringPaint = Paint()
+        ..color = color.withValues(alpha: 0.35)
+        ..strokeWidth = 2.0
+        ..style = PaintingStyle.stroke;
+      canvas.drawCircle(Offset(cx, cy), 7.5, ringPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) {
+    return oldDelegate.depth != depth ||
+        oldDelegate.isSelected != isSelected ||
+        oldDelegate.isLast != isLast;
   }
 }
