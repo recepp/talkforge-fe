@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/searchable_talk_type_dropdown.dart';
 import 'talk_detail_screen.dart';
 
 class CreateTalkDialog extends StatefulWidget {
@@ -295,42 +296,19 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                               const SizedBox(height: 18),
                             ],
 
-                            // Konuşma amacı — chip grid
+                            // Konuşma amacı — Searchable Dropdown
                             _fieldLabel(AppTranslations.tr('speech_purpose', lang), c),
-                            _loadingTalkTypes
-                                ? SizedBox(
-                                    height: 34,
-                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: c.acc)),
-                                  )
-                                : Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: _talkTypeItems.map((item) {
-                                      final title = item['title'] ?? item['key'];
-                                      final symbol = item['symbol'] ?? '💬';
-                                      final isSel = _selectedTalkType?['key'] == item['key'];
-                                      return InkWell(
-                                        borderRadius: BorderRadius.circular(99),
-                                        onTap: () => setState(() => _selectedTalkType = item),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: isSel ? c.accSoft : c.surf2,
-                                            borderRadius: BorderRadius.circular(99),
-                                            border: Border.all(color: isSel ? c.acc : c.bord),
-                                          ),
-                                          child: Text(
-                                            '$symbol $title',
-                                            style: GoogleFonts.schibstedGrotesk(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: isSel ? c.accTx : c.tx2,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
+                            SearchableTalkTypeDropdown(
+                              items: _talkTypeItems,
+                              selectedItem: _selectedTalkType,
+                              isLoading: _loadingTalkTypes,
+                              langCode: lang,
+                              onChanged: (item) {
+                                setState(() {
+                                  _selectedTalkType = item;
+                                });
+                              },
+                            ),
                             const SizedBox(height: 18),
 
                             if (_isCustomSelected) ...[
@@ -385,10 +363,10 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
                                             overlayColor: c.acc.withValues(alpha: 0.2),
                                           ),
                                           child: Slider(
-                                            value: _durationMinutes,
+                                            value: _durationMinutes.clamp(1.0, 10.0),
                                             min: 1.0,
-                                            max: 30.0,
-                                            divisions: 29,
+                                            max: 10.0,
+                                            divisions: 9,
                                             onChanged: (val) => setState(() => _durationMinutes = val),
                                           ),
                                         ),
