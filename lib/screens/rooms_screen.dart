@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'room_detail_screen.dart';
@@ -48,6 +49,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
   }
 
   Future<void> _createRoom() async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
     final c = context.colors;
     final controller = TextEditingController();
     final name = await showDialog<String>(
@@ -58,13 +60,13 @@ class _RoomsScreenState extends State<RoomsScreen> {
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: c.bord),
         ),
-        title: Text('Yeni Oda', style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold)),
+        title: Text(AppTranslations.tr('new_room', lang), style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: GoogleFonts.schibstedGrotesk(color: c.tx),
           decoration: InputDecoration(
-            hintText: 'Oda adı (örn. Pazarlama Ekibi)',
+            hintText: AppTranslations.tr('room_name_hint', lang),
             hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3),
             filled: true,
             fillColor: c.surf2,
@@ -75,12 +77,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('İptal', style: GoogleFonts.schibstedGrotesk(color: c.tx3)),
+            child: Text(AppTranslations.tr('cancel', lang), style: GoogleFonts.schibstedGrotesk(color: c.tx3)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text),
             style: ElevatedButton.styleFrom(backgroundColor: c.acc),
-            child: Text('Oluştur', style: GoogleFonts.schibstedGrotesk(color: Colors.white)),
+            child: Text(AppTranslations.tr('create', lang), style: GoogleFonts.schibstedGrotesk(color: Colors.white)),
           ),
         ],
       ),
@@ -102,7 +104,8 @@ class _RoomsScreenState extends State<RoomsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Provider.of<AuthProvider>(context); // rebuild on language/auth change
+    final authProvider = Provider.of<AuthProvider>(context); // rebuild on language/auth change
+    final lang = authProvider.language;
     final c = context.colors;
     final isMobile = MediaQuery.of(context).size.width < 800;
 
@@ -126,7 +129,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
               Row(
                 children: [
                   Text(
-                    'Odalar',
+                    AppTranslations.tr('rooms', lang),
                     style: GoogleFonts.schibstedGrotesk(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -138,7 +141,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   OutlinedButton.icon(
                     onPressed: _createRoom,
                     icon: const Icon(Icons.add, size: 17),
-                    label: Text('Yeni Oda', style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
+                    label: Text(AppTranslations.tr('new_room', lang), style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: c.accTx,
                       side: BorderSide(color: c.bord),
@@ -164,12 +167,12 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       Icon(Icons.groups_outlined, size: 48, color: c.tx3),
                       const SizedBox(height: 16),
                       Text(
-                        'Henüz bir odanız yok',
+                        AppTranslations.tr('no_rooms_yet', lang),
                         style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Ekip arkadaşlarınızla konuşma metinlerini birlikte yönetmek için bir oda oluşturun.',
+                        AppTranslations.tr('no_rooms_sub', lang),
                         textAlign: TextAlign.center,
                         style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                       ),
@@ -190,6 +193,9 @@ class _RoomsScreenState extends State<RoomsScreen> {
                       final isWriter = role == 'writer';
                       final memberCount = room['member_count'] ?? 0;
                       final talkCount = room['talk_count'] ?? 0;
+                      final membersLabel = AppTranslations.tr('members', lang);
+                      final talksLabel = AppTranslations.tr('talks', lang);
+                      final roleText = isWriter ? AppTranslations.tr('writer', lang) : AppTranslations.tr('reader', lang);
                       return InkWell(
                         onTap: () {
                           Navigator.push(
@@ -220,7 +226,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      '$memberCount üye · $talkCount konuşma',
+                                      '$memberCount $membersLabel · $talkCount $talksLabel',
                                       style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx3),
                                     ),
                                   ],
@@ -233,7 +239,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                                   borderRadius: BorderRadius.circular(99),
                                 ),
                                 child: Text(
-                                  isWriter ? 'Yazar' : 'Görüntüleyici',
+                                  roleText,
                                   style: GoogleFonts.schibstedGrotesk(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -257,3 +263,4 @@ class _RoomsScreenState extends State<RoomsScreen> {
     );
   }
 }
+

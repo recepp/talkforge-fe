@@ -91,7 +91,7 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
       if (mounted) {
         setState(() {
           _loadingTalkTypes = false;
-          _errorMessage = 'Failed to load talk types: $e';
+          _errorMessage = '${AppTranslations.tr('load_talk_types_failed', langCode)}: $e';
         });
       }
     }

@@ -19,6 +19,10 @@ class ProfileScreen extends StatelessWidget {
         return '🇪🇸';
       case 'fr':
         return '🇫🇷';
+      case 'ar':
+        return '🇸🇦';
+      case 'ru':
+        return '🇷🇺';
       default:
         return '🇹🇷';
     }
@@ -34,6 +38,10 @@ class ProfileScreen extends StatelessWidget {
         return 'Español (es)';
       case 'fr':
         return 'Français (fr)';
+      case 'ar':
+        return 'العربية (ar)';
+      case 'ru':
+        return 'Русский (ru)';
       default:
         return 'Türkçe (tr)';
     }
@@ -51,6 +59,10 @@ class ProfileScreen extends StatelessWidget {
         return 'Español 🇪🇸';
       case 'fr':
         return 'Français 🇫🇷';
+      case 'ar':
+        return 'العربية 🇸🇦';
+      case 'ru':
+        return 'Русский 🇷🇺';
       default:
         return code.toUpperCase();
     }
@@ -98,8 +110,8 @@ class ProfileScreen extends StatelessWidget {
     final c = context.colors;
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: c.surf,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) {
         final languages = [
           {'code': 'tr', 'name': 'Türkçe (tr)', 'flag': '🇹🇷'},
@@ -107,64 +119,203 @@ class ProfileScreen extends StatelessWidget {
           {'code': 'de', 'name': 'Deutsch (de)', 'flag': '🇩🇪'},
           {'code': 'es', 'name': 'Español (es)', 'flag': '🇪🇸'},
           {'code': 'fr', 'name': 'Français (fr)', 'flag': '🇫🇷'},
+          {'code': 'ar', 'name': 'العربية (ar)', 'flag': '🇸🇦'},
+          {'code': 'ru', 'name': 'Русский (ru)', 'flag': '🇷🇺'},
         ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Text(
-                  AppTranslations.tr('language_pref', lang),
-                  style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold, fontSize: 15),
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 440),
+            decoration: BoxDecoration(
+              color: c.surf,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border.all(color: c.bordSoft, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Drag Handle Indicator
+                    Center(
+                      child: Container(
+                        width: 32,
+                        height: 3.5,
+                        decoration: BoxDecoration(
+                          color: c.bord,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Header Row
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: c.accSoft,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: c.acc.withValues(alpha: 0.3)),
+                          ),
+                          child: Icon(Icons.language_rounded, color: c.accTx, size: 16),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            AppTranslations.tr('language_pref', lang),
+                            style: GoogleFonts.schibstedGrotesk(
+                              color: c.tx,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => Navigator.pop(sheetContext),
+                          borderRadius: BorderRadius.circular(99),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: c.bg,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: c.bordSoft),
+                            ),
+                            child: Icon(Icons.close_rounded, color: c.tx2, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Divider(color: c.bordSoft, height: 1),
+                    const SizedBox(height: 10),
+                    // Compact Language Item Cards List
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: languages.map((item) {
+                            final isSel = authProvider.language == item['code'];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 5.0),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () async {
+                                  Navigator.pop(sheetContext);
+                                  if (item['code'] == authProvider.language) return;
+                                  try {
+                                    await authProvider.updateLanguage(item['code']!);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).clearSnackBars();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: c.surf,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                            side: BorderSide(color: c.acc),
+                                          ),
+                                          content: Text(
+                                            '${AppTranslations.tr('lang_updated', item['code']!)}: ${_getLanguageDisplayName(item['code']!)}',
+                                            style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).clearSnackBars();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('${AppTranslations.tr('error', lang)}: ${e.toString().replaceAll("Exception: ", "")}'),
+                                          backgroundColor: Colors.redAccent,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: isSel ? c.accSoft : c.bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSel ? c.acc : c.bordSoft,
+                                      width: isSel ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Flag Icon Container
+                                      Container(
+                                        width: 30,
+                                        height: 30,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isSel
+                                              ? c.acc.withValues(alpha: 0.15)
+                                              : c.surf,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isSel
+                                                ? c.acc.withValues(alpha: 0.3)
+                                                : c.bordSoft,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          item['flag']!,
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      // Language Name
+                                      Expanded(
+                                        child: Text(
+                                          item['name']!,
+                                          style: GoogleFonts.schibstedGrotesk(
+                                            color: isSel ? c.accTx : c.tx,
+                                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                                            fontSize: 13.5,
+                                          ),
+                                        ),
+                                      ),
+                                      // Selected Checkmark Badge / Chevron Indicator
+                                      if (isSel)
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: c.acc,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.check_rounded, color: Colors.white, size: 13),
+                                        )
+                                      else
+                                        Icon(Icons.chevron_right_rounded, color: c.tx3, size: 16),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              ...languages.map((item) {
-                final isSel = authProvider.language == item['code'];
-                return ListTile(
-                  leading: Text(item['flag']!, style: const TextStyle(fontSize: 18)),
-                  title: Text(item['name']!, style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 14)),
-                  trailing: isSel ? Icon(Icons.check_circle_rounded, color: c.accTx, size: 18) : null,
-                  onTap: () async {
-                    Navigator.pop(sheetContext);
-                    if (item['code'] == authProvider.language) return;
-                    try {
-                      await authProvider.updateLanguage(item['code']!);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: c.surf,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: c.acc),
-                            ),
-                            content: Text(
-                              '${AppTranslations.tr('lang_updated', item['code']!)}: ${_getLanguageDisplayName(item['code']!)}',
-                              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${AppTranslations.tr('error', lang)}: ${e.toString().replaceAll("Exception: ", "")}'),
-                            backgroundColor: Colors.redAccent,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         );
       },
@@ -263,10 +414,10 @@ class ProfileScreen extends StatelessWidget {
                     _settingsRow(
                       context: context,
                       icon: isDark ? Icons.dark_mode : Icons.light_mode,
-                      label: 'Görünüm',
+                      label: AppTranslations.tr('appearance', lang),
                       showBottomBorder: false,
                       valueChild: Text(
-                        isDark ? 'Koyu tema' : 'Açık tema',
+                        isDark ? AppTranslations.tr('dark_theme', lang) : AppTranslations.tr('light_theme', lang),
                         style: GoogleFonts.schibstedGrotesk(fontSize: 14, fontWeight: FontWeight.w600, color: c.tx),
                       ),
                       trailing: Container(
@@ -279,8 +430,8 @@ class ProfileScreen extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _SegmentButton(label: 'Koyu', selected: isDark, onTap: themeProvider.setDark),
-                            _SegmentButton(label: 'Açık', selected: !isDark, onTap: themeProvider.setLight),
+                            _SegmentButton(label: AppTranslations.tr('dark', lang), selected: isDark, onTap: themeProvider.setDark),
+                            _SegmentButton(label: AppTranslations.tr('light', lang), selected: !isDark, onTap: themeProvider.setLight),
                           ],
                         ),
                       ),

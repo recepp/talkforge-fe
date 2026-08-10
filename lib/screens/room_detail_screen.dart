@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'create_talk_dialog.dart';
@@ -35,9 +38,6 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     });
     try {
       final room = await ApiService.getRoom(widget.roomId);
-      // The /talks tree already includes every talk shared into rooms the
-      // user is a member of — filter down to this room's roots here rather
-      // than adding a separate backend endpoint for the same data.
       final allTalks = await ApiService.getTalkRequests();
       final roomTalks = allTalks.where((t) => t is Map && t['room_id'] == widget.roomId).toList();
       if (mounted) {
@@ -58,6 +58,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
   }
 
   Future<void> _invite() async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
     final c = context.colors;
     final emailController = TextEditingController();
     String role = 'writer';
@@ -71,7 +72,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(color: c.bord),
           ),
-          title: Text('Üye Davet Et', style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold)),
+          title: Text(AppTranslations.tr('invite_member', lang), style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -81,7 +82,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 keyboardType: TextInputType.emailAddress,
                 style: GoogleFonts.schibstedGrotesk(color: c.tx),
                 decoration: InputDecoration(
-                  hintText: 'E-posta adresi',
+                  hintText: AppTranslations.tr('email_address_hint', lang),
                   hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3),
                   filled: true,
                   fillColor: c.surf2,
@@ -93,7 +94,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                 children: [
                   Expanded(
                     child: ChoiceChip(
-                      label: const Text('Yazar'),
+                      label: Text(AppTranslations.tr('writer', lang)),
                       selected: role == 'writer',
                       onSelected: (_) => setDialogState(() => role = 'writer'),
                       selectedColor: c.acc,
@@ -104,7 +105,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ChoiceChip(
-                      label: const Text('Görüntüleyici'),
+                      label: Text(AppTranslations.tr('reader', lang)),
                       selected: role == 'reader',
                       onSelected: (_) => setDialogState(() => role = 'reader'),
                       selectedColor: c.acc,
@@ -119,12 +120,12 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('İptal', style: TextStyle(color: c.tx3)),
+              child: Text(AppTranslations.tr('cancel', lang), style: TextStyle(color: c.tx3)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, {'email': emailController.text.trim(), 'role': role}),
               style: ElevatedButton.styleFrom(backgroundColor: c.acc),
-              child: const Text('Davet Et', style: TextStyle(color: Colors.white)),
+              child: Text(AppTranslations.tr('invite', lang), style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -167,8 +168,95 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     return count;
   }
 
+  Future<void> _deleteTalk(int id, String topic) async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
+    final c = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: c.surf,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: c.bord),
+        ),
+        title: Text(
+          AppTranslations.tr('delete', lang),
+          style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold, color: c.tx),
+        ),
+        content: Text(
+          AppTranslations.tr('confirm_delete', lang),
+          style: GoogleFonts.schibstedGrotesk(color: c.tx2),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              AppTranslations.tr('cancel', lang),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx3),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: Text(
+              AppTranslations.tr('delete', lang),
+              style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.failed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.deleteTalkRequest(id, cascade: true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 1800),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppTranslations.tr('success', lang),
+                    style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.completed,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+        _fetchAll();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 2500),
+              content: Text('${AppTranslations.tr('error', lang)}: $e'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<AuthProvider>(context).language;
     final c = context.colors;
     final isMobile = MediaQuery.of(context).size.width < 800;
 
@@ -182,7 +270,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               icon: const Icon(Icons.add),
-              label: Text('Yeni Konuşma', style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w700, fontSize: 13.5)),
+              label: Text(AppTranslations.tr('new_talk', lang), style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w700, fontSize: 13.5)),
             )
           : null,
       body: SafeArea(
@@ -217,7 +305,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      _room?['name'] as String? ?? 'Oda',
+                                      _room?['name'] as String? ?? AppTranslations.tr('room', lang),
                                       style: GoogleFonts.schibstedGrotesk(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w700,
@@ -230,7 +318,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                     OutlinedButton.icon(
                                       onPressed: _invite,
                                       icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
-                                      label: Text('Davet Et', style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      label: Text(AppTranslations.tr('invite', lang), style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: c.accTx,
                                         side: BorderSide(color: c.bord),
@@ -252,6 +340,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                       ? map['nickname'] as String
                                       : map['email'] as String? ?? '';
                                   final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                                  final roleLabelText = role == 'writer' ? AppTranslations.tr('writer', lang) : AppTranslations.tr('reader', lang);
                                   return Container(
                                     padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
                                     decoration: BoxDecoration(
@@ -274,7 +363,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                         Text(name, style: GoogleFonts.schibstedGrotesk(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.tx)),
                                         const SizedBox(width: 6),
                                         Text(
-                                          role == 'writer' ? 'Yazar' : 'Görüntüleyici',
+                                          roleLabelText,
                                           style: GoogleFonts.schibstedGrotesk(fontSize: 11, color: c.tx3),
                                         ),
                                       ],
@@ -284,7 +373,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'Odadaki Konuşmalar',
+                                AppTranslations.tr('talks_in_room', lang),
                                 style: GoogleFonts.schibstedGrotesk(fontSize: 14, fontWeight: FontWeight.w700, color: c.tx2),
                               ),
                               const SizedBox(height: 10),
@@ -299,7 +388,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      _isWriter ? 'Bu odada henüz konuşma yok. Sağ alttaki butonla ekleyin.' : 'Bu odada henüz konuşma yok.',
+                                      _isWriter ? AppTranslations.tr('no_talks_in_room_writer', lang) : AppTranslations.tr('no_talks_in_room_reader', lang),
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
                                     ),
@@ -325,7 +414,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                                   ? AppColors.failed
                                                   : AppColors.pending;
                                       final duration = map['duration'] ?? 0;
-                                      final meta = '$duration dk · ${_countVersions(map)} sürüm';
+                                      final minLabelText = AppTranslations.tr('min', lang);
+                                      final versionSuffixText = AppTranslations.tr('version_suffix', lang);
+                                      final meta = '$duration $minLabelText · ${_countVersions(map)} $versionSuffixText';
                                       return InkWell(
                                         onTap: () {
                                           Navigator.push(
@@ -350,7 +441,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
-                                                      map['topic'] as String? ?? 'Konuşma',
+                                                      map['topic'] as String? ?? AppTranslations.tr('new_talk', lang),
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
                                                       style: GoogleFonts.schibstedGrotesk(fontSize: 15, fontWeight: FontWeight.w600, color: c.tx),
@@ -360,6 +451,16 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                                   ],
                                                 ),
                                               ),
+                                              if (_isWriter) ...[
+                                                IconButton(
+                                                  icon: Icon(Icons.delete_outline_rounded, size: 19, color: c.tx3),
+                                                  hoverColor: AppColors.dangerTx.withValues(alpha: 0.15),
+                                                  splashRadius: 20,
+                                                  tooltip: AppTranslations.tr('delete', lang),
+                                                  onPressed: () => _deleteTalk(map['id'] as int, map['topic'] as String? ?? ''),
+                                                ),
+                                                const SizedBox(width: 2),
+                                              ],
                                               Icon(Icons.chevron_right, size: 18, color: c.tx3),
                                             ],
                                           ),
@@ -378,3 +479,4 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     );
   }
 }
+

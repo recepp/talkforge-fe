@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/app_translations.dart';
 import '../theme/app_theme.dart';
 
 // diff_match_patch 0.4.1 API:
@@ -27,7 +30,7 @@ class TalkDiffView extends StatefulWidget {
 }
 
 class _TalkDiffViewState extends State<TalkDiffView> {
-  int _viewMode = 0; // 0: Inline (Bütünleşik), 1: Side by Side (Yan Yana)
+  int _viewMode = 0; // 0: Inline, 1: Side by Side
   late List<Diff> _diffs;
 
   int _additionsCount = 0;
@@ -80,7 +83,11 @@ class _TalkDiffViewState extends State<TalkDiffView> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<AuthProvider>(context).language;
     final c = context.colors;
+    final versionLabel = AppTranslations.tr('version', lang);
+    final wordsLabel = AppTranslations.tr('words', lang);
+
     return Container(
       decoration: BoxDecoration(
         color: c.surf,
@@ -115,7 +122,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          'Sürüm ${widget.parentId} ➔ Sürüm ${widget.childId}',
+                          '$versionLabel ${widget.parentId} ➔ $versionLabel ${widget.childId}',
                           style: GoogleFonts.schibstedGrotesk(
                             color: c.tx,
                             fontSize: 13,
@@ -139,7 +146,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                               Icon(Icons.add, size: 12, color: AppColors.completed),
                               const SizedBox(width: 2),
                               Text(
-                                '+$_additionsCount kelime',
+                                '+$_additionsCount $wordsLabel',
                                 style: GoogleFonts.schibstedGrotesk(
                                   color: AppColors.completed,
                                   fontSize: 11,
@@ -165,7 +172,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                               Icon(Icons.remove, size: 12, color: AppColors.failed),
                               const SizedBox(width: 2),
                               Text(
-                                '-$_deletionsCount kelime',
+                                '-$_deletionsCount $wordsLabel',
                                 style: GoogleFonts.schibstedGrotesk(
                                   color: AppColors.failed,
                                   fontSize: 11,
@@ -193,13 +200,13 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildModeTab(
-                            title: 'Bütünleşik',
+                            title: lang == 'en' ? 'Inline' : 'Bütünleşik',
                             icon: Icons.view_headline_rounded,
                             index: 0,
                             c: c,
                           ),
                           _buildModeTab(
-                            title: 'Yan Yana',
+                            title: lang == 'en' ? 'Side by Side' : 'Yan Yana',
                             icon: Icons.view_column_rounded,
                             index: 1,
                             c: c,
@@ -216,7 +223,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
           // Diff Content Body
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: _viewMode == 0 ? _buildInlineDiff(c) : _buildSideBySideDiff(c),
+            child: _viewMode == 0 ? _buildInlineDiff(c) : _buildSideBySideDiff(c, lang),
           ),
         ],
       ),
@@ -307,9 +314,10 @@ class _TalkDiffViewState extends State<TalkDiffView> {
     );
   }
 
-  Widget _buildSideBySideDiff(AppColors c) {
+  Widget _buildSideBySideDiff(AppColors c, String lang) {
     List<InlineSpan> parentSpans = [];
     List<InlineSpan> childSpans = [];
+    final versionLabel = AppTranslations.tr('version', lang);
 
     for (final d in _diffs) {
       if (d.operation == DIFF_DELETE) {
@@ -364,7 +372,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                   Icon(Icons.history, size: 14, color: c.tx3),
                   const SizedBox(width: 6),
                   Text(
-                    'Ebeveyn Sürüm (${widget.parentId})',
+                    'Parent $versionLabel (${widget.parentId})',
                     style: GoogleFonts.schibstedGrotesk(
                       color: c.tx3,
                       fontSize: 12,
@@ -397,7 +405,7 @@ class _TalkDiffViewState extends State<TalkDiffView> {
                   Icon(Icons.new_releases_outlined, size: 14, color: c.accTx),
                   const SizedBox(width: 6),
                   Text(
-                    'Yeni Sürüm (${widget.childId})',
+                    'New $versionLabel (${widget.childId})',
                     style: GoogleFonts.schibstedGrotesk(
                       color: c.accTx,
                       fontSize: 12,
@@ -437,3 +445,4 @@ class _TalkDiffViewState extends State<TalkDiffView> {
     );
   }
 }
+

@@ -78,7 +78,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (account == null) return;
     final idToken = (await account.authentication).idToken;
     if (idToken == null) {
-      setState(() => _errorMessage = 'Google girişi başarısız: kimlik jetonu alınamadı.');
+      final lang = Provider.of<AuthProvider>(context, listen: false).language;
+      setState(() => _errorMessage = AppTranslations.tr('google_signin_failed', lang));
       return;
     }
     await _submitGoogleToken(idToken);

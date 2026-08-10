@@ -295,8 +295,11 @@ class ApiService {
   }
 
   // Delete Dialogue Request
-  static Future<void> deleteTalkRequest(int id) async {
-    final response = await _safeDelete(Uri.parse('${Constants.baseUrl}/talks/$id'));
+  static Future<void> deleteTalkRequest(int id, {bool cascade = false}) async {
+    final uri = cascade
+        ? Uri.parse('${Constants.baseUrl}/talks/$id?cascade=true')
+        : Uri.parse('${Constants.baseUrl}/talks/$id');
+    final response = await _safeDelete(uri);
     await _parseResponse(response, endpoint: '/talks/$id');
   }
 
