@@ -168,11 +168,14 @@ class AppTranslations {
       'leave_room_success': 'Odadan ayrıldınız.',
 
       // Filters & Search
-      'filter_all': 'Tümü',
+      'filter_all': 'Konuşmalarım',
       'filter_ready': 'Hazır',
       'filter_generating': 'Üretiliyor',
       'filter_shared': 'Paylaşımlı',
       'no_matching_talks': 'Aramanızla eşleşen konuşma yok.',
+      'no_archived_talks': 'Arşivlenmiş konuşma bulunamadı.',
+      'no_archived_talks_hint': 'Bir konuşmayı arşivlemek için liste üzerindeki arşiv simgesine tıklayın.',
+
       'retry': 'Yeniden Dene',
       'shared': 'Paylaşımlı',
       'min': 'dk',
@@ -210,7 +213,24 @@ class AppTranslations {
       'invited_by': 'Davet eden:',
       'pending_member': 'Bekliyor',
       'view_invites': 'Davetleri Gör',
-      'pending_invites_banner': 'Bekleyen oda davetiniz var!'
+      'pending_invites_banner': 'Bekleyen oda davetiniz var!',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Favoriler',
+      'filter_archived': 'Arşiv',
+      'favorite': 'Favorilere Ekle',
+      'unfavorite': 'Favorilerden Çıkar',
+      'archive_talk': 'Arşivle',
+      'unarchive_talk': 'Arşivden Çıkar',
+      'tags': 'Etiketler',
+      'add_tag': 'Etiket Ekle',
+      'tag_hint': 'Yeni etiket...',
+      'no_tags': 'Etiket yok',
+      'manage_tags': 'Etiketleri Düzenle',
+      'tag_filter_label': 'Etiket:',
+      'clear_tag_filter': 'Filtreyi Temizle',
+      'archive_confirm': 'Bu konuşma arşivlenecek.',
+      'archived_talks_empty': 'Arşivde konuşma yok.'
     },
     'en': {
       'my_talks': 'My Conversations',
@@ -385,6 +405,8 @@ class AppTranslations {
       'filter_generating': 'Generating',
       'filter_shared': 'Shared',
       'no_matching_talks': 'No conversations match your search.',
+      'no_archived_talks': 'No archived conversations found.',
+      'no_archived_talks_hint': 'Click the archive icon on a conversation to archive it.',
       'retry': 'Retry',
       'shared': 'Shared',
       'min': 'min',
@@ -422,7 +444,24 @@ class AppTranslations {
       'invited_by': 'Invited by:',
       'pending_member': 'Pending',
       'view_invites': 'View Invitations',
-      'pending_invites_banner': 'You have pending room invitations!'
+      'pending_invites_banner': 'You have pending room invitations!',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Favorites',
+      'filter_archived': 'Archived',
+      'favorite': 'Add to Favorites',
+      'unfavorite': 'Remove from Favorites',
+      'archive_talk': 'Archive',
+      'unarchive_talk': 'Unarchive',
+      'tags': 'Tags',
+      'add_tag': 'Add Tag',
+      'tag_hint': 'New tag...',
+      'no_tags': 'No tags',
+      'manage_tags': 'Manage Tags',
+      'tag_filter_label': 'Tag:',
+      'clear_tag_filter': 'Clear Filter',
+      'archive_confirm': 'This talk will be archived.',
+      'archived_talks_empty': 'No archived talks.'
     },
     'de': {
       'my_talks': 'Meine Gespräche',
@@ -609,7 +648,24 @@ class AppTranslations {
       'invite_role': 'Rolle',
       'invite_sent': 'Einladung gesendet! Der Benutzer tritt dem Raum nach der Annahme bei.',
       'invite_sent_email': 'E-Mail nicht registriert. Die Einladung wird automatisch verlinkt, wenn sie sich anmelden.',
-      'invites_badge': 'ausstehende Einladung'
+      'invites_badge': 'ausstehende Einladung',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Favoriten',
+      'filter_archived': 'Archiv',
+      'favorite': 'Zu Favoriten hinzufügen',
+      'unfavorite': 'Aus Favoriten entfernen',
+      'archive_talk': 'Archivieren',
+      'unarchive_talk': 'Aus Archiv holen',
+      'tags': 'Tags',
+      'add_tag': 'Tag hinzufügen',
+      'tag_hint': 'Neuer Tag...',
+      'no_tags': 'Keine Tags',
+      'manage_tags': 'Tags verwalten',
+      'tag_filter_label': 'Tag:',
+      'clear_tag_filter': 'Filter löschen',
+      'archive_confirm': 'Dieses Gespräch wird archiviert.',
+      'archived_talks_empty': 'Keine archivierten Gespräche.'
     },
     'es': {
       'my_talks': 'Mis Conversaciones',
@@ -796,7 +852,24 @@ class AppTranslations {
       'invite_role': 'Rol',
       'invite_sent': '¡Invitación enviada! El usuario se unirá a la sala tras aceptar.',
       'invite_sent_email': 'Correo no registrado. La invitación se vinculará automáticamente cuando se registren.',
-      'invites_badge': 'invitación pendiente'
+      'invites_badge': 'invitación pendiente',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Favoritos',
+      'filter_archived': 'Archivados',
+      'favorite': 'Añadir a Favoritos',
+      'unfavorite': 'Quitar de Favoritos',
+      'archive_talk': 'Archivar',
+      'unarchive_talk': 'Desarchivar',
+      'tags': 'Etiquetas',
+      'add_tag': 'Añadir Etiqueta',
+      'tag_hint': 'Nueva etiqueta...',
+      'no_tags': 'Sin etiquetas',
+      'manage_tags': 'Gestionar Etiquetas',
+      'tag_filter_label': 'Etiqueta:',
+      'clear_tag_filter': 'Limpiar Filtro',
+      'archive_confirm': 'Esta conversación será archivada.',
+      'archived_talks_empty': 'No hay conversaciones archivadas.'
     },
     'fr': {
       'my_talks': 'Mes Conversations',
@@ -983,7 +1056,24 @@ class AppTranslations {
       'invite_role': 'Rôle',
       'invite_sent': 'Invitation envoyée ! L\'utilisateur rejoindra la salle après avoir accepté.',
       'invite_sent_email': 'E-mail non enregistré. L\'invitation sera liée automatiquement lors de l\'inscription.',
-      'invites_badge': 'invitation en attente'
+      'invites_badge': 'invitation en attente',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Favoris',
+      'filter_archived': 'Archives',
+      'favorite': 'Ajouter aux Favoris',
+      'unfavorite': 'Retirer des Favoris',
+      'archive_talk': 'Archiver',
+      'unarchive_talk': 'Désarchiver',
+      'tags': 'Étiquettes',
+      'add_tag': 'Ajouter une Étiquette',
+      'tag_hint': 'Nouvelle étiquette...',
+      'no_tags': 'Aucune étiquette',
+      'manage_tags': 'Gérer les Étiquettes',
+      'tag_filter_label': 'Étiquette :',
+      'clear_tag_filter': 'Effacer le Filtre',
+      'archive_confirm': 'Cette conversation sera archivée.',
+      'archived_talks_empty': 'Aucune conversation archivée.'
     },
     'ar': {
       'my_talks': 'محادثاتي',
@@ -1170,7 +1260,24 @@ class AppTranslations {
       'invite_role': 'الدور',
       'invite_sent': 'تم إرسال الدعوة! سينضم المستخدم بعد القبول.',
       'invite_sent_email': 'البريد غير مسجل. سيتم ربط الدعوة تلقائياً عند التسجيل.',
-      'invites_badge': 'دعوة معلقة'
+      'invites_badge': 'دعوة معلقة',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'المفضلة',
+      'filter_archived': 'الأرشيف',
+      'favorite': 'أضف إلى المفضلة',
+      'unfavorite': 'إزالة من المفضلة',
+      'archive_talk': 'أرشفة',
+      'unarchive_talk': 'إلغاء الأرشفة',
+      'tags': 'العلامات',
+      'add_tag': 'إضافة علامة',
+      'tag_hint': 'علامة جديدة...',
+      'no_tags': 'لا توجد علامات',
+      'manage_tags': 'إدارة العلامات',
+      'tag_filter_label': 'علامة:',
+      'clear_tag_filter': 'مسح الفلتر',
+      'archive_confirm': 'سيتم أرشفة هذه المحادثة.',
+      'archived_talks_empty': 'لا توجد محادثات مؤرشفة.'
     },
     'ru': {
       'my_talks': 'Мои Разговоры',
@@ -1357,7 +1464,24 @@ class AppTranslations {
       'invite_role': 'Роль',
       'invite_sent': 'Приглашение отправлено! Пользователь присоединится после принятия.',
       'invite_sent_email': 'Эмайл не зарегистрирован. Приглашение будет автоматически связано при регистрации.',
-      'invites_badge': 'ожидающее приглашение'
+      'invites_badge': 'ожидающее приглашение',
+
+      // Organisation: Favorites, Archive, Tags
+      'filter_favorites': 'Избранное',
+      'filter_archived': 'Архив',
+      'favorite': 'Добавить в избранное',
+      'unfavorite': 'Убрать из избранного',
+      'archive_talk': 'Архивировать',
+      'unarchive_talk': 'Разархивировать',
+      'tags': 'Метки',
+      'add_tag': 'Добавить метку',
+      'tag_hint': 'Новая метка...',
+      'no_tags': 'Нет меток',
+      'manage_tags': 'Управление метками',
+      'tag_filter_label': 'Метка:',
+      'clear_tag_filter': 'Сбросить фильтр',
+      'archive_confirm': 'Этот разговор будет архивирован.',
+      'archived_talks_empty': 'Нет архивированных разговоров.'
     },
   };
 

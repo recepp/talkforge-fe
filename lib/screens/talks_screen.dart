@@ -10,7 +10,14 @@ import 'create_talk_dialog.dart';
 import 'talk_detail_screen.dart';
 import '../services/navigation_persistence.dart';
 
-const _filterKeys = ['filter_all', 'filter_ready', 'filter_generating', 'filter_shared'];
+const _filterKeys = [
+  'filter_all',
+  'filter_ready',
+  'filter_generating',
+  'filter_shared',
+  'filter_favorites',
+  'filter_archived',
+];
 
 class TalksScreen extends StatefulWidget {
   const TalksScreen({super.key});
@@ -69,7 +76,8 @@ class TalksScreenState extends State<TalksScreen> {
       });
     }
     try {
-      final talks = await ApiService.getTalkRequests();
+      final isArchiveMode = _filterKey == 'filter_archived';
+      final talks = await ApiService.getTalkRequests(archived: isArchiveMode ? true : null);
       if (mounted) {
         setState(() {
           _talks = talks;
@@ -230,6 +238,47 @@ class TalksScreenState extends State<TalksScreen> {
     }
   }
 
+  Future<void> _archiveTalk(Map<String, dynamic> talk, {required bool archive}) async {
+    final id = talk['id'] as int;
+    try {
+      await ApiService.patchTalkMeta(id, isArchived: archive);
+      _fetchTalks();
+    } catch (e) {
+      if (mounted) {
+        final lang = Provider.of<AuthProvider>(context, listen: false).language;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppTranslations.tr('error', lang)}: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite(Map<String, dynamic> talk) async {
+    final id = talk['id'] as int;
+    final isFav = talk['is_favorite'] as bool? ?? false;
+    try {
+      await ApiService.patchTalkMeta(id, isFavorite: !isFav);
+      _fetchTalks();
+    } catch (e) {
+      if (mounted) {
+        final lang = Provider.of<AuthProvider>(context, listen: false).language;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppTranslations.tr('error', lang)}: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'completed':
@@ -285,6 +334,12 @@ class TalksScreenState extends State<TalksScreen> {
   bool _matchesFilter(Map<String, dynamic> t) {
     final status = t['status'] as String? ?? '';
     final shared = t['room_id'] != null;
+
+    // Archive filter: API already returns only archived talks, accept all
+    if (_filterKey == 'filter_archived') {
+      return true;
+    }
+
     switch (_filterKey) {
       case 'filter_ready':
         return status == 'completed';
@@ -292,6 +347,8 @@ class TalksScreenState extends State<TalksScreen> {
         return status == 'processing' || status == 'pending';
       case 'filter_shared':
         return shared;
+      case 'filter_favorites':
+        return t['is_favorite'] as bool? ?? false;
       default:
         return true;
     }
@@ -340,47 +397,6 @@ class TalksScreenState extends State<TalksScreen> {
       );
     }
 
-    if (_talks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: c.surf,
-                shape: BoxShape.circle,
-                border: Border.all(color: c.bord),
-              ),
-              child: Icon(Icons.mic_none_outlined, size: 56, color: c.accTx),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              AppTranslations.tr('no_talks', lang),
-              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppTranslations.tr('talks_subtitle', lang),
-              style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: openCreateTalkDialog,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(AppTranslations.tr('new_talk', lang)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: c.acc,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
 
     final filtered = _talks.cast<Map<String, dynamic>>().where(_matchesFilter).where((t) {
       if (_search.trim().isEmpty) return true;
@@ -454,7 +470,13 @@ class TalksScreenState extends State<TalksScreen> {
                   final label = AppTranslations.tr(fKey, lang);
                   return InkWell(
                     borderRadius: BorderRadius.circular(99),
-                    onTap: () => setState(() => _filterKey = fKey),
+                    onTap: () {
+                      final wasArchive = _filterKey == 'filter_archived';
+                      final isArchive = fKey == 'filter_archived';
+                      setState(() => _filterKey = fKey);
+                      // Re-fetch when switching between archived and non-archived
+                      if (wasArchive != isArchive) _fetchTalks();
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                       decoration: BoxDecoration(
@@ -484,12 +506,75 @@ class TalksScreenState extends State<TalksScreen> {
                 clipBehavior: Clip.antiAlias,
                 child: filtered.isEmpty
                     ? Padding(
-                        padding: const EdgeInsets.all(36.0),
+                        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
                         child: Center(
-                          child: Text(
-                            AppTranslations.tr('no_matching_talks', lang),
-                            style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
-                          ),
+                          child: _filterKey == 'filter_archived'
+                              ? Column(
+                                  children: [
+                                    Icon(Icons.inventory_2_outlined, size: 40, color: c.tx3),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      AppTranslations.tr('no_archived_talks', lang),
+                                      style: GoogleFonts.schibstedGrotesk(
+                                        color: c.tx2,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      AppTranslations.tr('no_archived_talks_hint', lang),
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 12),
+                                    ),
+                                  ],
+                                )
+                              : _filterKey == 'filter_all' && _talks.isEmpty
+                                  ? Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(20),
+                                          decoration: BoxDecoration(
+                                            color: c.bg,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: c.bord),
+                                          ),
+                                          child: Icon(Icons.mic_none_outlined, size: 40, color: c.accTx),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          AppTranslations.tr('no_talks', lang),
+                                          style: GoogleFonts.schibstedGrotesk(
+                                            color: c.tx,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          AppTranslations.tr('talks_subtitle', lang),
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 12),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        ElevatedButton.icon(
+                                          onPressed: openCreateTalkDialog,
+                                          icon: const Icon(Icons.add_rounded, size: 16),
+                                          label: Text(AppTranslations.tr('new_talk', lang)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: c.acc,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      AppTranslations.tr('no_matching_talks', lang),
+                                      style: GoogleFonts.schibstedGrotesk(color: c.tx3, fontSize: 13),
+                                    ),
                         ),
                       )
                     : Column(
@@ -500,6 +585,8 @@ class TalksScreenState extends State<TalksScreen> {
                           final topic = talk['topic'] as String? ?? AppTranslations.tr('new_talk', lang);
                           final isShared = talk['room_id'] != null;
                           final isFailed = status == 'failed';
+                          final isArchived = talk['is_archived'] as bool? ?? false;
+                          final isFav = talk['is_favorite'] as bool? ?? false;
 
                           return InkWell(
                             onTap: () {
@@ -596,14 +683,40 @@ class TalksScreenState extends State<TalksScreen> {
                                       ),
                                     ),
                                   ],
-                                  const SizedBox(width: 6),
-                                  IconButton(
-                                    icon: Icon(Icons.delete_outline_rounded, size: 19, color: c.tx3),
-                                    hoverColor: AppColors.dangerTx.withValues(alpha: 0.15),
-                                    splashRadius: 20,
-                                    tooltip: AppTranslations.tr('delete', lang),
-                                    onPressed: () => _deleteTalk(id, topic),
-                                  ),
+                                   const SizedBox(width: 6),
+                                   IconButton(
+                                     icon: Icon(
+                                       isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                                       size: 19,
+                                       color: isFav ? const Color(0xFFF59E0B) : c.tx3,
+                                     ),
+                                     hoverColor: c.accSoft.withValues(alpha: 0.5),
+                                     splashRadius: 20,
+                                     tooltip: isFav
+                                         ? AppTranslations.tr('unfavorite', lang)
+                                         : AppTranslations.tr('favorite', lang),
+                                     onPressed: () => _toggleFavorite(talk),
+                                   ),
+                                   IconButton(
+                                     icon: Icon(
+                                       isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                                       size: 19,
+                                       color: c.tx3,
+                                     ),
+                                     hoverColor: c.accSoft.withValues(alpha: 0.5),
+                                     splashRadius: 20,
+                                     tooltip: isArchived
+                                         ? AppTranslations.tr('unarchive_talk', lang)
+                                         : AppTranslations.tr('archive_talk', lang),
+                                     onPressed: () => _archiveTalk(talk, archive: !isArchived),
+                                   ),
+                                   IconButton(
+                                     icon: Icon(Icons.delete_outline_rounded, size: 19, color: c.tx3),
+                                     hoverColor: AppColors.dangerTx.withValues(alpha: 0.15),
+                                     splashRadius: 20,
+                                     tooltip: AppTranslations.tr('delete', lang),
+                                     onPressed: () => _deleteTalk(id, topic),
+                                   ),
                                   const SizedBox(width: 2),
                                   Icon(Icons.chevron_right, size: 18, color: c.tx3),
                                 ],
