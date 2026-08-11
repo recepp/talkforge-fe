@@ -87,6 +87,18 @@ class ApiService {
     }
   }
 
+  static Future<http.Response> _safePatch(Uri url, {Object? body}) async {
+    final headers = await _getHeaders();
+    try {
+      return await http.patch(url, headers: headers, body: body);
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await handle401();
+      }
+      rethrow;
+    }
+  }
+
   // Handle 401 Unauthorized globally: clear session data and reset navigator stack
   static Future<void> handle401() async {
     if (_isHandling401) return;
@@ -233,13 +245,36 @@ class ApiService {
   }
 
   // Fetch Dialogue Tree List
-  static Future<List<dynamic>> getTalkRequests() async {
-    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/talks'));
+  // [archived]: when true, fetches archived talks only; when false or null, shows non-archived (default)
+  static Future<List<dynamic>> getTalkRequests({bool? archived}) async {
+    final uri = archived == true
+        ? Uri.parse('${Constants.baseUrl}/talks?archived=true')
+        : Uri.parse('${Constants.baseUrl}/talks');
+    final response = await _safeGet(uri);
     final data = await _parseResponse(response, endpoint: '/talks');
     if (data is List) {
       return data;
     }
     return [];
+  }
+
+  // Update a root talk's organizational metadata (favorite, archived, tags).
+  // Only fields provided (non-null) are sent to the backend.
+  static Future<Map<String, dynamic>> patchTalkMeta(
+    int id, {
+    bool? isFavorite,
+    bool? isArchived,
+    List<String>? tags,
+  }) async {
+    final body = <String, dynamic>{};
+    if (isFavorite != null) body['is_favorite'] = isFavorite;
+    if (isArchived != null) body['is_archived'] = isArchived;
+    if (tags != null) body['tags'] = tags;
+    final response = await _safePatch(
+      Uri.parse('${Constants.baseUrl}/talks/$id/meta'),
+      body: jsonEncode(body),
+    );
+    return await _parseResponse(response, endpoint: '/talks/$id/meta') as Map<String, dynamic>;
   }
 
   // Create Dialogue Request
