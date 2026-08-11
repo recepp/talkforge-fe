@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'create_talk_dialog.dart';
 import 'talk_detail_screen.dart';
+import '../services/navigation_persistence.dart';
 
 class RoomDetailScreen extends StatefulWidget {
   const RoomDetailScreen({super.key, required this.roomId});
@@ -135,16 +136,134 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     if (result == null || result['email'] == null || result['email']!.isEmpty) return;
 
     try {
-      await ApiService.inviteRoomMember(roomId: widget.roomId, email: result['email']!, role: result['role']!);
-      await _fetchAll();
+      await ApiService.inviteRoomMember(
+        roomId: widget.roomId,
+        email: result['email']!,
+        role: result['role']!,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    AppTranslations.tr('invite_sent', lang),
+                    style: GoogleFonts.schibstedGrotesk(color: Colors.white, fontSize: 13.5),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF6366F1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        await _fetchAll();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
         );
       }
     }
   }
+
+  Future<void> _leaveRoom() async {
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
+    final c = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: c.surf,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: c.bord),
+        ),
+        title: Text(
+          AppTranslations.tr('leave_room', lang),
+          style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold, color: c.tx),
+        ),
+        content: Text(
+          AppTranslations.tr('confirm_leave_room', lang),
+          style: GoogleFonts.schibstedGrotesk(color: c.tx2),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              AppTranslations.tr('cancel', lang),
+              style: GoogleFonts.schibstedGrotesk(color: c.tx3),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.logout_rounded, size: 18),
+            label: Text(
+              AppTranslations.tr('leave_room', lang),
+              style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.failed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiService.leaveRoom(widget.roomId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 2000),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppTranslations.tr('leave_room_success', lang),
+                    style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.completed,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              duration: const Duration(milliseconds: 3000),
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
 
   void _openCreateTalk() {
     showGeneralDialog(
@@ -314,7 +433,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (_isWriter)
+                                  if (_isWriter) ...[
                                     OutlinedButton.icon(
                                       onPressed: _invite,
                                       icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
@@ -327,6 +446,20 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  OutlinedButton.icon(
+                                    onPressed: _leaveRoom,
+                                    icon: const Icon(Icons.logout_rounded, size: 17),
+                                    label: Text(AppTranslations.tr('leave_room', lang), style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.dangerTx,
+                                      side: BorderSide(color: AppColors.failed.withValues(alpha: 0.4)),
+                                      backgroundColor: c.surf,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 18),
@@ -336,37 +469,82 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                 children: (_room?['members'] as List<dynamic>? ?? []).map((m) {
                                   final map = m as Map<String, dynamic>;
                                   final role = map['role'] as String? ?? 'reader';
+                                  final status = map['status'] as String? ?? 'accepted';
+                                  final isPending = status == 'pending';
                                   final name = (map['nickname'] as String?)?.isNotEmpty == true
                                       ? map['nickname'] as String
                                       : map['email'] as String? ?? '';
                                   final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
                                   final roleLabelText = role == 'writer' ? AppTranslations.tr('writer', lang) : AppTranslations.tr('reader', lang);
-                                  return Container(
-                                    padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-                                    decoration: BoxDecoration(
-                                      color: c.surf,
-                                      border: Border.all(color: c.bordSoft),
-                                      borderRadius: BorderRadius.circular(99),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 13,
-                                          backgroundColor: c.accSoft,
-                                          child: Text(
-                                            initial,
-                                            style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w700, color: c.accTx),
+
+                                  return Opacity(
+                                    opacity: isPending ? 0.72 : 1.0,
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
+                                      decoration: BoxDecoration(
+                                        color: isPending ? const Color(0x1CF59E0B) : c.surf,
+                                        border: Border.all(
+                                          color: isPending ? const Color(0x66F59E0B) : c.bordSoft,
+                                        ),
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 13,
+                                            backgroundColor: isPending ? const Color(0x33F59E0B) : c.accSoft,
+                                            child: Text(
+                                              initial,
+                                              style: GoogleFonts.schibstedGrotesk(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isPending ? const Color(0xFFF59E0B) : c.accTx,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(name, style: GoogleFonts.schibstedGrotesk(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.tx)),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          roleLabelText,
-                                          style: GoogleFonts.schibstedGrotesk(fontSize: 11, color: c.tx3),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            name,
+                                            style: GoogleFonts.schibstedGrotesk(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: isPending ? c.tx2 : c.tx,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '($roleLabelText)',
+                                            style: GoogleFonts.schibstedGrotesk(fontSize: 11, color: c.tx3),
+                                          ),
+                                          if (isPending) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0x33F59E0B),
+                                                borderRadius: BorderRadius.circular(99),
+                                                border: Border.all(color: const Color(0x66F59E0B)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.schedule_rounded, size: 10, color: Color(0xFFF59E0B)),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    AppTranslations.tr('pending_member', lang),
+                                                    style: GoogleFonts.schibstedGrotesk(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFFF59E0B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }).toList(),
@@ -417,12 +595,38 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                       final minLabelText = AppTranslations.tr('min', lang);
                                       final versionSuffixText = AppTranslations.tr('version_suffix', lang);
                                       final meta = '$duration $minLabelText · ${_countVersions(map)} $versionSuffixText';
+                                      final talkId = (map['id'] as num?)?.toInt();
+                                      final talkUnreadMap = (_room != null && _room!['talk_unread_counts'] is Map)
+                                          ? Map<int, int>.from(
+                                              (_room!['talk_unread_counts'] as Map).map(
+                                                (k, v) => MapEntry(int.parse(k.toString()), (v as num).toInt()),
+                                              ),
+                                            )
+                                          : <int, int>{};
+                                      final talkUnreadCountFromMap = (talkId != null ? talkUnreadMap[talkId] : null) ?? 0;
+                                      final talkUnreadCountFromNode = (map['unread_count'] as num?)?.toInt() ?? 0;
+                                      final talkUnreadCount = talkUnreadCountFromMap > 0 ? talkUnreadCountFromMap : talkUnreadCountFromNode;
+                                      final hasTalkUnread = map['has_unread'] == true || talkUnreadCount > 0;
                                       return InkWell(
                                         onTap: () {
+                                          if (talkId != null) {
+                                            NavigationPersistence.saveState(
+                                              tabIndex: 1,
+                                              detailType: 'talk',
+                                              detailId: talkId,
+                                            );
+                                          }
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(builder: (context) => TalkDetailScreen(talkNode: map)),
-                                          ).then((_) => _fetchAll());
+                                          ).then((_) {
+                                            NavigationPersistence.saveState(
+                                              tabIndex: 1,
+                                              detailType: 'room',
+                                              detailId: widget.roomId,
+                                            );
+                                            _fetchAll();
+                                          });
                                         },
                                         hoverColor: c.accSoft.withValues(alpha: 0.5),
                                         child: Container(
@@ -430,21 +634,64 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.bordSoft))),
                                           child: Row(
                                             children: [
-                                              Container(
-                                                width: 8,
-                                                height: 8,
-                                                decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                                              Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                                                  ),
+                                                  if (hasTalkUnread)
+                                                    Positioned(
+                                                      top: -3,
+                                                      right: -3,
+                                                      child: Container(
+                                                        width: 6,
+                                                        height: 6,
+                                                        decoration: const BoxDecoration(
+                                                          color: Color(0xFFEF4444),
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                               const SizedBox(width: 14),
                                               Expanded(
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    Text(
-                                                      map['topic'] as String? ?? AppTranslations.tr('new_talk', lang),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: GoogleFonts.schibstedGrotesk(fontSize: 15, fontWeight: FontWeight.w600, color: c.tx),
+                                                    Row(
+                                                      children: [
+                                                        Flexible(
+                                                          child: Text(
+                                                            map['topic'] as String? ?? AppTranslations.tr('new_talk', lang),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: GoogleFonts.schibstedGrotesk(fontSize: 15, fontWeight: FontWeight.w600, color: c.tx),
+                                                          ),
+                                                        ),
+                                                        if (hasTalkUnread) ...[
+                                                          const SizedBox(width: 8),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0x22EF4444),
+                                                              borderRadius: BorderRadius.circular(99),
+                                                              border: Border.all(color: const Color(0x66EF4444)),
+                                                            ),
+                                                            child: Text(
+                                                              talkUnreadCount > 0 ? '$talkUnreadCount yeni' : 'Yeni',
+                                                              style: GoogleFonts.schibstedGrotesk(
+                                                                fontSize: 10.5,
+                                                                fontWeight: FontWeight.w700,
+                                                                color: const Color(0xFFEF4444),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
                                                     ),
                                                     const SizedBox(height: 3),
                                                     Text(meta, style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx3)),

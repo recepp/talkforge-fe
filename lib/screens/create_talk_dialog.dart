@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/searchable_talk_type_dropdown.dart';
 import 'talk_detail_screen.dart';
+import '../services/navigation_persistence.dart';
 
 class CreateTalkDialog extends StatefulWidget {
   const CreateTalkDialog({super.key, this.roomId});
@@ -170,13 +171,24 @@ class _CreateTalkDialogState extends State<CreateTalkDialog> {
       );
 
       if (mounted) {
+        final talkId = (newRequest['id'] as num?)?.toInt();
+        final tabIdx = widget.roomId != null ? 1 : 0;
+        if (talkId != null) {
+          NavigationPersistence.saveState(
+            tabIndex: tabIdx,
+            detailType: 'talk',
+            detailId: talkId,
+          );
+        }
         Navigator.pop(context); // Close popup dialog
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TalkDetailScreen(talkNode: newRequest),
           ),
-        );
+        ).then((_) {
+          NavigationPersistence.saveState(tabIndex: tabIdx);
+        });
       }
     } catch (e) {
       if (mounted) {

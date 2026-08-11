@@ -138,11 +138,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       Map<String, dynamic>? freshRoot;
       final currentSubtreeIds = _flattenTree(_talkTree, 0).map((n) => n.node['id'] as int).toSet();
 
+      final targetTalkId = (_talkTree['id'] as num?)?.toInt();
       for (final t in talks) {
         if (t != null) {
           final tMap = t as Map<String, dynamic>;
           final tNodeIds = _flattenTree(tMap, 0).map((n) => n.node['id'] as int).toSet();
-          if (tNodeIds.intersection(currentSubtreeIds).isNotEmpty) {
+          if (tNodeIds.intersection(currentSubtreeIds).isNotEmpty ||
+              (targetTalkId != null && (tMap['id'] as num?)?.toInt() == targetTalkId)) {
             freshRoot = tMap;
             break;
           }
