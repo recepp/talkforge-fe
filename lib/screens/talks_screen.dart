@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'create_talk_dialog.dart';
 import 'talk_detail_screen.dart';
+import '../services/navigation_persistence.dart';
 
 const _filterKeys = ['filter_all', 'filter_ready', 'filter_generating', 'filter_shared'];
 
@@ -502,10 +503,18 @@ class TalksScreenState extends State<TalksScreen> {
 
                           return InkWell(
                             onTap: () {
+                              NavigationPersistence.saveState(
+                                tabIndex: 0,
+                                detailType: 'talk',
+                                detailId: id,
+                              );
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => TalkDetailScreen(talkNode: talk)),
-                              ).then((_) => _fetchTalks());
+                              ).then((_) {
+                                NavigationPersistence.saveState(tabIndex: 0);
+                                _fetchTalks();
+                              });
                             },
                             onLongPress: () => _deleteTalk(id, topic),
                             hoverColor: c.accSoft.withValues(alpha: 0.5),

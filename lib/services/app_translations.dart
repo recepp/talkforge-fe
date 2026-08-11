@@ -163,6 +163,9 @@ class AppTranslations {
       'talks_in_room': 'Odadaki Konuşmalar',
       'no_talks_in_room_writer': 'Bu odada henüz konuşma yok. Sağ alttaki butonla ekleyin.',
       'no_talks_in_room_reader': 'Bu odada henüz konuşma yok.',
+      'leave_room': 'Odadan Çık',
+      'confirm_leave_room': 'Bu odadan çıkmak istediğinizden emin misiniz?',
+      'leave_room_success': 'Odadan ayrıldınız.',
 
       // Filters & Search
       'filter_all': 'Tümü',
@@ -188,7 +191,26 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'E-posta',
       'google_signin_failed': 'Google girişi başarısız: kimlik jetonu alınamadı.',
-      'load_talk_types_failed': 'Konuşma türleri yüklenemedi'
+      'load_talk_types_failed': 'Konuşma türleri yüklenemedi',
+
+      // Invites
+      'invites': 'Davetler',
+      'pending_invites': 'Bekleyen Davetler',
+      'no_invites': 'Bekleyen davet yok',
+      'no_invites_sub': 'Bir odaya davet edildiğinizde burada görünecek.',
+      'accept': 'Kabul Et',
+      'decline': 'Reddet',
+      'invite_accepted': 'Davet kabul edildi! Odaya katıldınız.',
+      'invite_declined': 'Davet reddedildi.',
+      'invite_from_room': 'Odaya davet edildiniz',
+      'invite_role': 'Rol',
+      'invite_sent': 'Davet gönderildi! Kullanıcı daveti onayladığında odaya katılacak.',
+      'invite_sent_email': 'Davet e-postası kayıtlı değil, kullanıcı kayıt olduğunda davet otomatik eşleştirilecek.',
+      'invites_badge': 'bekleyen davet',
+      'invited_by': 'Davet eden:',
+      'pending_member': 'Bekliyor',
+      'view_invites': 'Davetleri Gör',
+      'pending_invites_banner': 'Bekleyen oda davetiniz var!'
     },
     'en': {
       'my_talks': 'My Conversations',
@@ -353,6 +375,9 @@ class AppTranslations {
       'talks_in_room': 'Conversations in Room',
       'no_talks_in_room_writer': 'No conversations in this room yet. Add one using the bottom-right button.',
       'no_talks_in_room_reader': 'No conversations in this room yet.',
+      'leave_room': 'Leave Room',
+      'confirm_leave_room': 'Are you sure you want to leave this room?',
+      'leave_room_success': 'You have left the room.',
 
       // Filters & Search
       'filter_all': 'All',
@@ -378,7 +403,26 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'Email',
       'google_signin_failed': 'Google login failed: could not retrieve ID token.',
-      'load_talk_types_failed': 'Failed to load talk types'
+      'load_talk_types_failed': 'Failed to load talk types',
+
+      // Invites
+      'invites': 'Invitations',
+      'pending_invites': 'Pending Invitations',
+      'no_invites': 'No pending invitations',
+      'no_invites_sub': 'You will see room invitations here when you are invited.',
+      'accept': 'Accept',
+      'decline': 'Decline',
+      'invite_accepted': 'Invitation accepted! You have joined the room.',
+      'invite_declined': 'Invitation declined.',
+      'invite_from_room': 'You have been invited to a room',
+      'invite_role': 'Role',
+      'invite_sent': 'Invitation sent! The user will join the room after accepting.',
+      'invite_sent_email': 'Email not registered. The invite will be automatically linked when they sign up.',
+      'invites_badge': 'pending invitation',
+      'invited_by': 'Invited by:',
+      'pending_member': 'Pending',
+      'view_invites': 'View Invitations',
+      'pending_invites_banner': 'You have pending room invitations!'
     },
     'de': {
       'my_talks': 'Meine Gespräche',
@@ -550,7 +594,22 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'E-Mail',
       'google_signin_failed': 'Google-Anmeldung fehlgeschlagen.',
-      'load_talk_types_failed': 'Gesprächskategorien konnten nicht geladen werden'
+      'load_talk_types_failed': 'Gesprächskategorien konnten nicht geladen werden',
+
+      // Invites
+      'invites': 'Einladungen',
+      'pending_invites': 'Ausstehende Einladungen',
+      'no_invites': 'Keine ausstehenden Einladungen',
+      'no_invites_sub': 'Hier sehen Sie Raumeinladungen, wenn Sie eingeladen werden.',
+      'accept': 'Annehmen',
+      'decline': 'Ablehnen',
+      'invite_accepted': 'Einladung angenommen! Sie sind dem Raum beigetreten.',
+      'invite_declined': 'Einladung abgelehnt.',
+      'invite_from_room': 'Sie wurden zu einem Raum eingeladen',
+      'invite_role': 'Rolle',
+      'invite_sent': 'Einladung gesendet! Der Benutzer tritt dem Raum nach der Annahme bei.',
+      'invite_sent_email': 'E-Mail nicht registriert. Die Einladung wird automatisch verlinkt, wenn sie sich anmelden.',
+      'invites_badge': 'ausstehende Einladung'
     },
     'es': {
       'my_talks': 'Mis Conversaciones',
@@ -722,7 +781,22 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'Correo electrónico',
       'google_signin_failed': 'Error al iniciar sesión con Google.',
-      'load_talk_types_failed': 'Error al cargar los tipos de conversación'
+      'load_talk_types_failed': 'Error al cargar los tipos de conversación',
+
+      // Invites
+      'invites': 'Invitaciones',
+      'pending_invites': 'Invitaciones Pendientes',
+      'no_invites': 'Sin invitaciones pendientes',
+      'no_invites_sub': 'Verás las invitaciones a salas cuando seas invitado.',
+      'accept': 'Aceptar',
+      'decline': 'Rechazar',
+      'invite_accepted': '¡Invitación aceptada! Te has unido a la sala.',
+      'invite_declined': 'Invitación rechazada.',
+      'invite_from_room': 'Has sido invitado a una sala',
+      'invite_role': 'Rol',
+      'invite_sent': '¡Invitación enviada! El usuario se unirá a la sala tras aceptar.',
+      'invite_sent_email': 'Correo no registrado. La invitación se vinculará automáticamente cuando se registren.',
+      'invites_badge': 'invitación pendiente'
     },
     'fr': {
       'my_talks': 'Mes Conversations',
@@ -894,7 +968,22 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'E-mail',
       'google_signin_failed': 'Échec de la connexion Google.',
-      'load_talk_types_failed': 'Échec du chargement des types de discours'
+      'load_talk_types_failed': 'Échec du chargement des types de discours',
+
+      // Invites
+      'invites': 'Invitations',
+      'pending_invites': 'Invitations en attente',
+      'no_invites': 'Aucune invitation en attente',
+      'no_invites_sub': 'Vous verrez les invitations de salle ici lorsque vous serez invité.',
+      'accept': 'Accepter',
+      'decline': 'Refuser',
+      'invite_accepted': 'Invitation acceptée ! Vous avez rejoint la salle.',
+      'invite_declined': 'Invitation refusée.',
+      'invite_from_room': 'Vous avez été invité dans une salle',
+      'invite_role': 'Rôle',
+      'invite_sent': 'Invitation envoyée ! L\'utilisateur rejoindra la salle après avoir accepté.',
+      'invite_sent_email': 'E-mail non enregistré. L\'invitation sera liée automatiquement lors de l\'inscription.',
+      'invites_badge': 'invitation en attente'
     },
     'ar': {
       'my_talks': 'محادثاتي',
@@ -1066,7 +1155,22 @@ class AppTranslations {
       'share_telegram': 'تيليجرام',
       'share_email': 'البريد الإلكتروني',
       'google_signin_failed': 'فشل تسجيل الدخول باستخدام Google.',
-      'load_talk_types_failed': 'فشل في تحميل أنواع الخطابات'
+      'load_talk_types_failed': 'فشل في تحميل أنواع الخطابات',
+
+      // Invites
+      'invites': 'الدعوات',
+      'pending_invites': 'الدعوات المعلقة',
+      'no_invites': 'لا توجد دعوات معلقة',
+      'no_invites_sub': 'ستظهر دعوات الغرفة هنا عند دعوتك.',
+      'accept': 'قبول',
+      'decline': 'رفض',
+      'invite_accepted': 'تم قبول الدعوة! لقد انضممت إلى الغرفة.',
+      'invite_declined': 'تم رفض الدعوة.',
+      'invite_from_room': 'تمت دعوتك إلى غرفة',
+      'invite_role': 'الدور',
+      'invite_sent': 'تم إرسال الدعوة! سينضم المستخدم بعد القبول.',
+      'invite_sent_email': 'البريد غير مسجل. سيتم ربط الدعوة تلقائياً عند التسجيل.',
+      'invites_badge': 'دعوة معلقة'
     },
     'ru': {
       'my_talks': 'Мои Разговоры',
@@ -1238,7 +1342,22 @@ class AppTranslations {
       'share_telegram': 'Telegram',
       'share_email': 'Эл. почта',
       'google_signin_failed': 'Сбой входа через Google.',
-      'load_talk_types_failed': 'Не удалось загрузить типы речей'
+      'load_talk_types_failed': 'Не удалось загрузить типы речей',
+
+      // Invites
+      'invites': 'Приглашения',
+      'pending_invites': 'Ожидающие приглашения',
+      'no_invites': 'Нет ожидающих приглашений',
+      'no_invites_sub': 'Здесь будут отображаться приглашения в комнату.',
+      'accept': 'Принять',
+      'decline': 'Отклонить',
+      'invite_accepted': 'Приглашение принято! Вы вступили в комнату.',
+      'invite_declined': 'Приглашение отклонено.',
+      'invite_from_room': 'Вас пригласили в комнату',
+      'invite_role': 'Роль',
+      'invite_sent': 'Приглашение отправлено! Пользователь присоединится после принятия.',
+      'invite_sent_email': 'Эмайл не зарегистрирован. Приглашение будет автоматически связано при регистрации.',
+      'invites_badge': 'ожидающее приглашение'
     },
   };
 

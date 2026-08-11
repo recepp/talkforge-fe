@@ -339,6 +339,14 @@ class ApiService {
     return await _parseResponse(response, endpoint: '/rooms/$roomId/members') as Map<String, dynamic>;
   }
 
+  // Leave a room
+  static Future<Map<String, dynamic>> leaveRoom(int roomId) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/rooms/$roomId/leave'),
+    );
+    return await _parseResponse(response, endpoint: '/rooms/$roomId/leave') as Map<String, dynamic>;
+  }
+
   // List a talk's discussion thread
   static Future<List<dynamic>> getTalkMessages(int talkId) async {
     final response = await _safeGet(Uri.parse('${Constants.baseUrl}/talks/$talkId/messages'));
@@ -361,4 +369,27 @@ class ApiService {
     final response = await _safePost(Uri.parse('${Constants.baseUrl}/talks/$talkId/messages/summarize'));
     return await _parseResponse(response, endpoint: '/talks/$talkId/messages/summarize') as Map<String, dynamic>;
   }
+
+  // ── Invite / Approval API ──────────────────────────────────────────────────
+
+  /// Returns the list of pending room invitations for the authenticated user.
+  static Future<List<dynamic>> getInvites() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/invites'));
+    final data = await _parseResponse(response, endpoint: '/invites');
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Accepts a pending invitation by its RoomMember ID.
+  static Future<Map<String, dynamic>> acceptInvite(int inviteId) async {
+    final response = await _safePost(Uri.parse('${Constants.baseUrl}/invites/$inviteId/accept'));
+    return await _parseResponse(response, endpoint: '/invites/$inviteId/accept') as Map<String, dynamic>;
+  }
+
+  /// Declines a pending invitation by its RoomMember ID.
+  static Future<Map<String, dynamic>> declineInvite(int inviteId) async {
+    final response = await _safePost(Uri.parse('${Constants.baseUrl}/invites/$inviteId/decline'));
+    return await _parseResponse(response, endpoint: '/invites/$inviteId/decline') as Map<String, dynamic>;
+  }
 }
+
