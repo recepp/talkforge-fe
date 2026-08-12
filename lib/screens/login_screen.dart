@@ -22,7 +22,8 @@ import '../widgets/google_signin_button.dart';
 const bool _kGoogleSignInEnabled = true;
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialErrorMessage;
+  const LoginScreen({super.key, this.initialErrorMessage});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nicknameController = TextEditingController();
 
   bool _isSignUp = false;
+  bool _isSubmitting = false;
   String _errorMessage = '';
 
   GoogleSignIn? _googleSignIn;
@@ -43,6 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialErrorMessage != null && widget.initialErrorMessage!.isNotEmpty) {
+      _errorMessage = widget.initialErrorMessage!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _errorMessage.isNotEmpty) {
+          _showError(_errorMessage);
+        }
+      });
+    }
     if (_kGoogleSignInEnabled && Constants.googleClientId.isNotEmpty) {
       // Deferred past the first frame: constructing GoogleSignIn kicks off
       // Google's GIS script injection immediately, and if that fails
@@ -87,15 +97,58 @@ class _LoginScreenState extends State<LoginScreen> {
     await _submitGoogleToken(token);
   }
 
+  void _showError(String rawErr) {
+    if (!mounted) return;
+    final cleanErr = rawErr.replaceAll('Exception: ', '');
+    final lang = Provider.of<AuthProvider>(context, listen: false).language;
+    final translatedErr = AppTranslations.translateError(cleanErr, lang);
+
+    setState(() {
+      _errorMessage = cleanErr;
+    });
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  translatedErr,
+                  style: GoogleFonts.schibstedGrotesk(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.redAccent.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+  }
+
   Future<void> _submitGoogleToken(String idToken) async {
-    setState(() => _errorMessage = '');
+    setState(() {
+      _errorMessage = '';
+      _isSubmitting = true;
+    });
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       await authProvider.loginWithGoogle(idToken);
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
+      if (mounted) {
+        _showError(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -113,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       _errorMessage = '';
+      _isSubmitting = true;
     });
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -131,9 +185,15 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
+      if (mounted) {
+        _showError(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -162,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final isLoading = authProvider.isLoading;
+    final isLoading = _isSubmitting || authProvider.isLoading;
     final lang = authProvider.language;
     final c = context.colors;
 
@@ -217,15 +277,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   if (_errorMessage.isNotEmpty) ...[
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.failed.withValues(alpha: 0.12),
+                        color: Colors.red.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.failed.withValues(alpha: 0.3)),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
                       ),
-                      child: Text(
-                        _errorMessage,
-                        style: GoogleFonts.schibstedGrotesk(color: AppColors.dangerTx, fontSize: 13),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              AppTranslations.translateError(_errorMessage, lang),
+                              style: GoogleFonts.schibstedGrotesk(
+                                color: c.tx,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -248,8 +328,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: _fieldDecoration(AppTranslations.tr('email_label', lang), c),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return AppTranslations.tr('email_required', lang);
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      final trimmed = value?.trim();
+                      if (trimmed == null || trimmed.isEmpty) return AppTranslations.tr('email_required', lang);
+                      if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(trimmed)) {
                         return AppTranslations.tr('email_invalid', lang);
                       }
                       return null;

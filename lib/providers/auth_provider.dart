@@ -51,8 +51,6 @@ class AuthProvider extends ChangeNotifier {
 
   // Login
   Future<void> login(String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final data = await ApiService.login(email, password);
       _isAuthenticated = true;
@@ -60,19 +58,15 @@ class AuthProvider extends ChangeNotifier {
       _nickname = data['nickname'];
       _role = data['role'];
       _language = data['language'] ?? 'tr';
+      notifyListeners();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
   // Signup
   Future<void> signup(String email, String password, String nickname) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final data = await ApiService.signup(email, password, nickname);
       _isAuthenticated = true;
@@ -80,19 +74,15 @@ class AuthProvider extends ChangeNotifier {
       _nickname = data['nickname'];
       _role = data['role'];
       _language = data['language'] ?? 'tr';
+      notifyListeners();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
   // Login with a Google ID token
   Future<void> loginWithGoogle(String googleToken) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final data = await ApiService.googleLogin(googleToken);
       _isAuthenticated = true;
@@ -100,12 +90,10 @@ class AuthProvider extends ChangeNotifier {
       _nickname = data['nickname'];
       _role = data['role'];
       _language = data['language'] ?? 'tr';
+      notifyListeners();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 

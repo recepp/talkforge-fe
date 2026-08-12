@@ -99,8 +99,8 @@ class ApiService {
     }
   }
 
-  // Handle 401 Unauthorized globally: clear session data and reset navigator stack
-  static Future<void> handle401() async {
+  // Handle 401 Unauthorized / 403 Forbidden globally: clear session data and reset navigator stack
+  static Future<void> handle401([String? message]) async {
     if (_isHandling401) return;
     _isHandling401 = true;
     try {
@@ -112,7 +112,7 @@ class ApiService {
       await prefs.clear();
 
       navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => LoginScreen(initialErrorMessage: message)),
         (route) => false,
       );
     } finally {
@@ -137,12 +137,16 @@ class ApiService {
         return Map<String, dynamic>.from(decoded);
       }
       return decoded;
-    } else if (statusCode == 401 && endpoint != '/auth/login' && endpoint != '/auth/signup') {
-      await handle401();
+    } else if (endpoint != '/auth/login' && endpoint != '/auth/signup' && endpoint != '/auth/google' &&
+               (statusCode == 401 || (statusCode == 403 && decoded is Map && decoded['error'].toString().toLowerCase().contains('suspended')))) {
       String errorMessage = 'Oturum süresi doldu. Lütfen tekrar giriş yapın.';
       if (decoded is Map && decoded.containsKey('error')) {
         errorMessage = decoded['error'].toString();
       }
+      if (errorMessage.toLowerCase().contains('authorization header') || errorMessage.toLowerCase().contains('token')) {
+        errorMessage = 'Oturum süresi doldu. Lütfen tekrar giriş yapın.';
+      }
+      await handle401(errorMessage);
       throw Exception(errorMessage);
     } else {
       String errorMessage = 'İşlem başarısız oldu';
@@ -426,5 +430,48 @@ class ApiService {
     final response = await _safePost(Uri.parse('${Constants.baseUrl}/invites/$inviteId/decline'));
     return await _parseResponse(response, endpoint: '/invites/$inviteId/decline') as Map<String, dynamic>;
   }
+
+  // ── Admin Panel API ────────────────────────────────────────────────────────
+
+  /// Fetch overall platform statistics (Total users, total talks, status breakdown, Gemini API calls)
+  static Future<Map<String, dynamic>> getAdminStats() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/admin/stats'));
+    final data = await _parseResponse(response, endpoint: '/admin/stats');
+    return data as Map<String, dynamic>;
+  }
+
+  /// Fetch all users with usage stats and role/suspension state
+  static Future<List<dynamic>> getAdminUsers() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/admin/users'));
+    final data = await _parseResponse(response, endpoint: '/admin/users');
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Update a user's role or suspension status
+  static Future<Map<String, dynamic>> updateAdminUser(
+    int userId, {
+    String? role,
+    bool? isSuspended,
+  }) async {
+    final body = <String, dynamic>{};
+    if (role != null) body['role'] = role;
+    if (isSuspended != null) body['is_suspended'] = isSuspended;
+
+    final response = await _safePatch(
+      Uri.parse('${Constants.baseUrl}/admin/users/$userId'),
+      body: jsonEncode(body),
+    );
+    return await _parseResponse(response, endpoint: '/admin/users/$userId') as Map<String, dynamic>;
+  }
+
+  /// Fetch all rooms with member & talk counts
+  static Future<List<dynamic>> getAdminRooms() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/admin/rooms'));
+    final data = await _parseResponse(response, endpoint: '/admin/rooms');
+    if (data is List) return data;
+    return [];
+  }
 }
+
 

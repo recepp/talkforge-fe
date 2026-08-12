@@ -69,6 +69,9 @@ class NavigationPersistence {
           case 3:
             hash = '#/profile';
             break;
+          case 4:
+            hash = '#/admin';
+            break;
           case 0:
           default:
             hash = '#/talks';
@@ -103,7 +106,7 @@ class NavigationPersistence {
     final detailId = prefs.getInt(_keyDetailId);
 
     return NavigationState(
-      tabIndex: (tabIndex >= 0 && tabIndex <= 3) ? tabIndex : 0,
+      tabIndex: (tabIndex >= 0 && tabIndex <= 4) ? tabIndex : 0,
       detailType: detailType,
       detailId: detailId,
     );
@@ -142,6 +145,8 @@ class NavigationPersistence {
       return NavigationState(tabIndex: 2);
     } else if (section == 'profile') {
       return NavigationState(tabIndex: 3);
+    } else if (section == 'admin') {
+      return NavigationState(tabIndex: 4);
     }
 
     return null;

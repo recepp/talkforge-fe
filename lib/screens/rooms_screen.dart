@@ -98,9 +98,15 @@ class RoomsScreenState extends State<RoomsScreen> {
       await fetchRooms();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.redAccent),
-        );
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              duration: const Duration(seconds: 2),
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
       }
     }
   }
@@ -156,8 +162,10 @@ class RoomsScreenState extends State<RoomsScreen> {
       try {
         await ApiService.leaveRoom(roomId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
               duration: const Duration(milliseconds: 2000),
               content: Row(
                 children: [
@@ -178,8 +186,10 @@ class RoomsScreenState extends State<RoomsScreen> {
         await fetchRooms();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
               duration: const Duration(milliseconds: 3000),
               content: Text(e.toString().replaceAll('Exception: ', '')),
               backgroundColor: Colors.redAccent,
