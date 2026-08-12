@@ -706,9 +706,11 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                                                   tooltip: AppTranslations.tr('delete', lang),
                                                   onPressed: () => _deleteTalk(map['id'] as int, map['topic'] as String? ?? ''),
                                                 ),
-                                                const SizedBox(width: 2),
                                               ],
-                                              Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                                              if (!isMobile) ...[
+                                                const SizedBox(width: 2),
+                                                Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                                              ],
                                             ],
                                           ),
                                         ),

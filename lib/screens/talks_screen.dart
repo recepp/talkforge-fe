@@ -717,8 +717,10 @@ class TalksScreenState extends State<TalksScreen> {
                                      tooltip: AppTranslations.tr('delete', lang),
                                      onPressed: () => _deleteTalk(id, topic),
                                    ),
-                                  const SizedBox(width: 2),
-                                  Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                                   if (!isMobile) ...[
+                                     const SizedBox(width: 2),
+                                     Icon(Icons.chevron_right, size: 18, color: c.tx3),
+                                   ],
                                 ],
                               ),
                             ),
