@@ -82,9 +82,11 @@ class InvitesScreenState extends State<InvitesScreen> with AutomaticKeepAliveCli
   }
 
   void _showSnack(String msg, {required bool isSuccess}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
           children: [
             Icon(
               isSuccess ? Icons.check_circle_outline : Icons.info_outline,

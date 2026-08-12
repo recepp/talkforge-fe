@@ -10,6 +10,8 @@ import 'talks_screen.dart';
 import 'rooms_screen.dart';
 import 'profile_screen.dart';
 import 'invites_screen.dart';
+import 'admin_screen.dart';
+
 
 import 'room_detail_screen.dart';
 import 'talk_detail_screen.dart';
@@ -36,6 +38,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     RoomsScreen(key: _roomsKey),
     InvitesScreen(key: _invitesKey, onInvitesChanged: _onInvitesChanged),
     const ProfileScreen(),
+    const AdminScreen(),
   ];
 
   void _onInvitesChanged() {
@@ -130,7 +133,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Provider.of<AuthProvider>(context); // rebuild on language changes
+    final authProvider = Provider.of<AuthProvider>(context); // rebuild on language changes
+    if (_currentIndex == 4 && authProvider.role != 'admin') {
+      _currentIndex = 0;
+    }
     final c = context.colors;
     final content = IndexedStack(index: _currentIndex, children: _screens);
 
@@ -258,6 +264,17 @@ class _Sidebar extends StatelessWidget {
             active: currentIndex == 3,
             onTap: () => onTap(3),
           ),
+          if (authProvider.role == 'admin') ...[
+            const SizedBox(height: 4),
+            _NavItem(
+              icon: Icons.admin_panel_settings_outlined,
+              filledIcon: Icons.admin_panel_settings,
+              label: AppTranslations.tr('admin_panel', lang),
+              active: currentIndex == 4,
+              onTap: () => onTap(4),
+            ),
+          ],
+
           const Spacer(),
           SizedBox(
             width: double.infinity,
@@ -512,6 +529,14 @@ class _MobileBottomNav extends StatelessWidget {
               active: currentIndex == 3,
               onTap: () => onTap(3),
             ),
+            if (Provider.of<AuthProvider>(context).role == 'admin')
+              _MobileNavItem(
+                icon: Icons.admin_panel_settings_outlined,
+                filledIcon: Icons.admin_panel_settings,
+                label: AppTranslations.tr('admin_panel', lang),
+                active: currentIndex == 4,
+                onTap: () => onTap(4),
+              ),
           ],
         ),
       ),

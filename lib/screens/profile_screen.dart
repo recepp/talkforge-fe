@@ -5,6 +5,9 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/app_translations.dart';
 import '../theme/app_theme.dart';
+import '../services/navigation_persistence.dart';
+import 'admin_screen.dart';
+
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -394,6 +397,24 @@ class ProfileScreen extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
+                    if (authProvider.role == 'admin')
+                      _settingsRow(
+                        context: context,
+                        icon: Icons.admin_panel_settings_outlined,
+                        label: AppTranslations.tr('admin_panel', lang),
+                        valueChild: Text(
+                          'Kullanıcı & Sistem Yönetimi',
+                          style: GoogleFonts.schibstedGrotesk(fontSize: 14, fontWeight: FontWeight.w600, color: c.tx),
+                        ),
+                        trailing: Icon(Icons.chevron_right_rounded, color: c.tx3),
+                        onTap: () async {
+                          NavigationPersistence.saveState(tabIndex: 4);
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AdminScreen(showBackButton: true)),
+                          );
+                          NavigationPersistence.saveState(tabIndex: 3);
+                        },
+                      ),
                     _settingsRow(
                       context: context,
                       icon: Icons.language,
@@ -438,6 +459,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+
               ),
               const SizedBox(height: 18),
               OutlinedButton.icon(

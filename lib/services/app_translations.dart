@@ -3,6 +3,10 @@ class AppTranslations {
     'tr': {
       'my_talks': 'Konuşmalarım',
       'my_profile': 'Profilim',
+      'admin_panel': 'Admin Paneli',
+      'admin_stats': 'İstatistikler',
+      'admin_users': 'Kullanıcılar',
+      'admin_rooms': 'Odalar',
       'email_address': 'E-posta Adresi',
       'user': 'Kullanıcı',
       'admin_role': 'Yönetici / Admin',
@@ -230,7 +234,15 @@ class AppTranslations {
       'tag_filter_label': 'Etiket:',
       'clear_tag_filter': 'Filtreyi Temizle',
       'archive_confirm': 'Bu konuşma arşivlenecek.',
-      'archived_talks_empty': 'Arşivde konuşma yok.'
+      'archived_talks_empty': 'Arşivde konuşma yok.',
+
+      // Auth Errors
+      'account_suspended': 'Hesabınız askıya alındı. Lütfen yönetici ile iletişime geçin.',
+      'invalid_credentials': 'E-posta veya şifreniz yanlış.',
+      'google_account_only': 'Bu hesap Google ile kaydolmuş. Lütfen Google ile giriş yapın.',
+      'email_already_exists': 'Bu e-posta adresiyle zaten bir hesap mevcut.',
+      'nickname_already_exists': 'Bu kullanıcı adı zaten kullanılıyor.',
+      'session_expired': 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'
     },
     'en': {
       'my_talks': 'My Conversations',
@@ -461,7 +473,15 @@ class AppTranslations {
       'tag_filter_label': 'Tag:',
       'clear_tag_filter': 'Clear Filter',
       'archive_confirm': 'This talk will be archived.',
-      'archived_talks_empty': 'No archived talks.'
+      'archived_talks_empty': 'No archived talks.',
+
+      // Auth Errors
+      'account_suspended': 'Your account has been suspended. Please contact an administrator.',
+      'invalid_credentials': 'Invalid email or password.',
+      'google_account_only': 'This account was registered using Google. Please log in with Google.',
+      'email_already_exists': 'An account with this email address already exists.',
+      'nickname_already_exists': 'This username is already taken.',
+      'session_expired': 'Session expired. Please log in again.'
     },
     'de': {
       'my_talks': 'Meine Gespräche',
@@ -665,7 +685,15 @@ class AppTranslations {
       'tag_filter_label': 'Tag:',
       'clear_tag_filter': 'Filter löschen',
       'archive_confirm': 'Dieses Gespräch wird archiviert.',
-      'archived_talks_empty': 'Keine archivierten Gespräche.'
+      'archived_talks_empty': 'Keine archivierten Gespräche.',
+
+      // Auth Errors
+      'account_suspended': 'Ihr Konto wurde gesperrt. Bitte wenden Sie sich an den Administrator.',
+      'invalid_credentials': 'Ungültige E-Mail-Adresse oder Passwort.',
+      'google_account_only': 'Dieses Konto wurde mit Google registriert. Bitte melden Sie sich mit Google an.',
+      'email_already_exists': 'Ein Konto mit dieser E-Mail-Adresse existiert bereits.',
+      'nickname_already_exists': 'Dieser Benutzername ist bereits vergeben.',
+      'session_expired': 'Sitzung abgelaufen. Bitte melden Sie sich erneut an.'
     },
     'es': {
       'my_talks': 'Mis Conversaciones',
@@ -869,7 +897,15 @@ class AppTranslations {
       'tag_filter_label': 'Etiqueta:',
       'clear_tag_filter': 'Limpiar Filtro',
       'archive_confirm': 'Esta conversación será archivada.',
-      'archived_talks_empty': 'No hay conversaciones archivadas.'
+      'archived_talks_empty': 'No hay conversaciones archivadas.',
+
+      // Auth Errors
+      'account_suspended': 'Su cuenta ha sido suspendida. Por favor, póngase en contacto con el administrador.',
+      'invalid_credentials': 'Correo electrónico o contraseña no válidos.',
+      'google_account_only': 'Esta cuenta fue registrada con Google. Inicie sesión con Google.',
+      'email_already_exists': 'Ya existe una cuenta con esta dirección de correo electrónico.',
+      'nickname_already_exists': 'Este nombre de usuario ya está en uso.',
+      'session_expired': 'Sesión expirada. Por favor inicie sesión de nuevo.'
     },
     'fr': {
       'my_talks': 'Mes Conversations',
@@ -1073,7 +1109,15 @@ class AppTranslations {
       'tag_filter_label': 'Étiquette :',
       'clear_tag_filter': 'Effacer le Filtre',
       'archive_confirm': 'Cette conversation sera archivée.',
-      'archived_talks_empty': 'Aucune conversation archivée.'
+      'archived_talks_empty': 'Aucune conversation archivée.',
+
+      // Auth Errors
+      'account_suspended': 'Votre compte a été suspendu. Veuillez contacter l\'administrateur.',
+      'invalid_credentials': 'E-mail ou mot de passe invalide.',
+      'google_account_only': 'Ce compte a été enregistré avec Google. Veuillez vous connecter avec Google.',
+      'email_already_exists': 'Un compte avec cette adresse e-mail existe déjà.',
+      'nickname_already_exists': 'Ce nom d\'utilisateur est déjà pris.',
+      'session_expired': 'Session expirée. Veuillez vous reconnecter.'
     },
     'ar': {
       'my_talks': 'محادثاتي',
@@ -1277,7 +1321,15 @@ class AppTranslations {
       'tag_filter_label': 'علامة:',
       'clear_tag_filter': 'مسح الفلتر',
       'archive_confirm': 'سيتم أرشفة هذه المحادثة.',
-      'archived_talks_empty': 'لا توجد محادثات مؤرشفة.'
+      'archived_talks_empty': 'لا توجد محادثات مؤرشفة.',
+
+      // Auth Errors
+      'account_suspended': 'تم تعليق حسابك. يرجى الاتصال بالمسؤول.',
+      'invalid_credentials': 'البريد الإلكتروني أو كلمة المرور غير صالحة.',
+      'google_account_only': 'تم تسجيل هذا الحساب باستخدام Google. يرجى تسجيل الدخول باستخدام Google.',
+      'email_already_exists': 'يوجد حساب بالفعل بهذا البريد الإلكتروني.',
+      'nickname_already_exists': 'اسم المستخدم هذا مستخدم بالفعل.',
+      'session_expired': 'انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.'
     },
     'ru': {
       'my_talks': 'Мои Разговоры',
@@ -1481,13 +1533,80 @@ class AppTranslations {
       'tag_filter_label': 'Метка:',
       'clear_tag_filter': 'Сбросить фильтр',
       'archive_confirm': 'Этот разговор будет архивирован.',
-      'archived_talks_empty': 'Нет архивированных разговоров.'
+      'archived_talks_empty': 'Нет архивированных разговоров.',
+
+      // Auth Errors
+      'account_suspended': 'Ваш аккаунт приостановлен. Пожалуйста, свяжитесь с администратором.',
+      'invalid_credentials': 'Неверный адрес электронной почты или пароль.',
+      'google_account_only': 'Этот аккаунт был зарегистрирован через Google. Пожалуйста, войдите через Google.',
+      'email_already_exists': 'Аккаунт с таким адресом электронной почты уже существует.',
+      'nickname_already_exists': 'Это имя пользователя уже занято.',
+      'session_expired': 'Сессия истекла. Пожалуйста, войдите снова.'
     },
   };
 
   static String tr(String key, String langCode) {
     final lang = _localizedValues.containsKey(langCode) ? langCode : 'tr';
     return _localizedValues[lang]?[key] ?? _localizedValues['en']?[key] ?? _localizedValues['tr']?[key] ?? key;
+  }
+
+  static String translateError(String rawError, String lang) {
+    if (rawError.isEmpty) return '';
+    final lower = rawError.toLowerCase();
+
+    // Account suspended / disabled / blocked
+    if (lower.contains('suspended') ||
+        lower.contains('askıya') ||
+        lower.contains('kısıtlandı') ||
+        lower.contains('blocked')) {
+      return tr('account_suspended', lang);
+    }
+
+    // Session expired / missing or invalid token or authorization header
+    if (lower.contains('authorization header') ||
+        lower.contains('session expired') ||
+        lower.contains('oturum süresi doldu') ||
+        lower.contains('token is missing') ||
+        lower.contains('token expired')) {
+      return tr('session_expired', lang);
+    }
+
+    // Invalid credentials / wrong password / wrong email / 401 unauthorized
+    if (lower.contains('invalid email or password') ||
+        lower.contains('invalid email') ||
+        lower.contains('invalid credential') ||
+        lower.contains('invalid password') ||
+        lower.contains('wrong password') ||
+        lower.contains('incorrect password') ||
+        lower.contains('unauthorized') ||
+        lower.contains('gecersiz') ||
+        lower.contains('geçersiz') ||
+        lower.contains('şifreniz yanlış') ||
+        lower.contains('sifreniz yanlis') ||
+        lower.contains('hatalı şifre')) {
+      return tr('invalid_credentials', lang);
+    }
+
+    // Google account only
+    if (lower.contains('google')) {
+      return tr('google_account_only', lang);
+    }
+
+    // Email already exists
+    if (lower.contains('email already exists') ||
+        lower.contains('email_already_exists') ||
+        (lower.contains('email') && (lower.contains('exist') || lower.contains('mevcut') || lower.contains('kullanımda')))) {
+      return tr('email_already_exists', lang);
+    }
+
+    // Nickname already exists
+    if (lower.contains('nickname already exists') ||
+        lower.contains('nickname_already_exists') ||
+        ((lower.contains('nickname') || lower.contains('kullanıcı adı')) && (lower.contains('exist') || lower.contains('mevcut') || lower.contains('kullanımda')))) {
+      return tr('nickname_already_exists', lang);
+    }
+
+    return rawError.replaceAll('Exception: ', '');
   }
 
   static String translateSpeechType(String? speechType, String langCode) {
