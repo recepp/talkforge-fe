@@ -234,7 +234,7 @@ class _Sidebar extends StatelessWidget {
           _NavItem(
             icon: Icons.forum_outlined,
             filledIcon: Icons.forum,
-            label: AppTranslations.tr('my_talks', lang),
+            label: AppTranslations.tr('nav_talks', lang),
             active: currentIndex == 0,
             onTap: () => onTap(0),
           ),
@@ -502,7 +502,7 @@ class _MobileBottomNav extends StatelessWidget {
             _MobileNavItem(
               icon: Icons.forum_outlined,
               filledIcon: Icons.forum,
-              label: AppTranslations.tr('my_talks', lang),
+              label: AppTranslations.tr('nav_talks', lang),
               active: currentIndex == 0,
               onTap: () => onTap(0),
             ),

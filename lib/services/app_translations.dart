@@ -2,6 +2,7 @@ class AppTranslations {
   static const Map<String, Map<String, String>> _localizedValues = {
     'tr': {
       'my_talks': 'Konuşmalarım',
+      'nav_talks': 'Konuşmalar',
       'my_profile': 'Profilim',
       'admin_panel': 'Admin Paneli',
       'admin_stats': 'İstatistikler',
@@ -246,6 +247,7 @@ class AppTranslations {
     },
     'en': {
       'my_talks': 'My Conversations',
+      'nav_talks': 'Conversations',
       'my_profile': 'My Profile',
       'email_address': 'Email Address',
       'user': 'User',
@@ -485,6 +487,7 @@ class AppTranslations {
     },
     'de': {
       'my_talks': 'Meine Gespräche',
+      'nav_talks': 'Gespräche',
       'my_profile': 'Mein Profil',
       'email_address': 'E-Mail-Adresse',
       'user': 'Benutzer',
@@ -697,6 +700,7 @@ class AppTranslations {
     },
     'es': {
       'my_talks': 'Mis Conversaciones',
+      'nav_talks': 'Conversaciones',
       'my_profile': 'Mi Perfil',
       'email_address': 'Correo Electrónico',
       'user': 'Usuario',
@@ -909,6 +913,7 @@ class AppTranslations {
     },
     'fr': {
       'my_talks': 'Mes Conversations',
+      'nav_talks': 'Conversations',
       'my_profile': 'Mon Profil',
       'email_address': 'Adresse E-mail',
       'user': 'Utilisateur',
@@ -1121,6 +1126,7 @@ class AppTranslations {
     },
     'ar': {
       'my_talks': 'محادثاتي',
+      'nav_talks': 'المحادثات',
       'my_profile': 'ملفي الشخصي',
       'email_address': 'البريد الإلكتروني',
       'user': 'مستخدم',
@@ -1333,6 +1339,7 @@ class AppTranslations {
     },
     'ru': {
       'my_talks': 'Мои Разговоры',
+      'nav_talks': 'Разговоры',
       'my_profile': 'Мой Профиль',
       'email_address': 'Электронная Почта',
       'user': 'Пользователь',
