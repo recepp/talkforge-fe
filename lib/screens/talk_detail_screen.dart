@@ -957,6 +957,91 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
   }
 
+  Widget _buildTotalTokenBadge(Map<String, dynamic>? rootNode, AppColors c) {
+    if (rootNode == null) return const SizedBox.shrink();
+
+    final flatList = _flattenTree(rootNode, 0);
+    int totalTokens = 0;
+    int promptTokens = 0;
+    int completionTokens = 0;
+
+    for (final flat in flatList) {
+      promptTokens += (flat.node['prompt_tokens'] as num?)?.toInt() ?? 0;
+      completionTokens += (flat.node['completion_tokens'] as num?)?.toInt() ?? 0;
+      totalTokens += (flat.node['total_tokens'] as num?)?.toInt() ?? 0;
+    }
+
+    if (totalTokens <= 0) return const SizedBox.shrink();
+
+    final String tooltipMsg = 'Toplam Harcanan: $totalTokens tokens (Prompt: $promptTokens | Completion: $completionTokens)';
+
+    return Tooltip(
+      message: tooltipMsg,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.generating_tokens_rounded, size: 13, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 4),
+            Text(
+              '$totalTokens tokens',
+              style: GoogleFonts.schibstedGrotesk(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF3B82F6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVersionTokenBadge(Map<String, dynamic>? selectedNode, AppColors c) {
+    if (selectedNode == null) return const SizedBox.shrink();
+
+    final int totalTokens = (selectedNode['total_tokens'] as num?)?.toInt() ?? 0;
+    if (totalTokens <= 0) return const SizedBox.shrink();
+
+    final int promptTokens = (selectedNode['prompt_tokens'] as num?)?.toInt() ?? 0;
+    final int completionTokens = (selectedNode['completion_tokens'] as num?)?.toInt() ?? 0;
+
+    final String tooltipMsg = 'Bu Sürüm: $totalTokens tokens (Prompt: $promptTokens | Completion: $completionTokens)';
+
+    return Tooltip(
+      message: tooltipMsg,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.generating_tokens_rounded, size: 14, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 5),
+            Text(
+              '$totalTokens tokens',
+              style: GoogleFonts.schibstedGrotesk(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF3B82F6),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _countWords(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return 0;
@@ -1147,11 +1232,20 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                topic,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.schibstedGrotesk(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: c.tx),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      topic,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.schibstedGrotesk(fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.2, color: c.tx),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTotalTokenBadge(_talkTree, c),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
@@ -1311,7 +1405,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                'Diff',
+                                AppTranslations.tr('diff_button', lang),
                                 style: GoogleFonts.schibstedGrotesk(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -1323,6 +1417,8 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         ),
                       ),
                     ],
+                    const SizedBox(width: 8),
+                    _buildVersionTokenBadge(_selectedNode, c),
                   ],
                 ),
                 if (treeList.length > 1)
@@ -1509,6 +1605,27 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
+                                           if (node['total_tokens'] != null && (node['total_tokens'] as num).toInt() > 0) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.generating_tokens_rounded, size: 11, color: Color(0xFF3B82F6)),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    '${(node['total_tokens'] as num).toInt()}',
+                                                    style: GoogleFonts.schibstedGrotesk(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF3B82F6)),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
                                           Text(
                                             _relativeTime(node['created_at']),
                                             style: GoogleFonts.schibstedGrotesk(fontSize: 10.5, color: c.tx3),

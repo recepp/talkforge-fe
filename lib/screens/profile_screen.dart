@@ -4,13 +4,53 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/app_translations.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../services/navigation_persistence.dart';
 import 'admin_screen.dart';
+import 'premium_screen.dart';
 
-
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Map<String, dynamic>? _usageStats;
+  bool _isLoadingUsage = false;
+  String _usageError = '';
+  bool _isQuotaExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsageStats();
+  }
+
+  Future<void> _loadUsageStats() async {
+    setState(() {
+      _isLoadingUsage = true;
+      _usageError = '';
+    });
+    try {
+      final stats = await ApiService.getUserUsage();
+      if (mounted) {
+        setState(() {
+          _usageStats = stats;
+          _isLoadingUsage = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _usageError = e.toString().replaceAll('Exception: ', '');
+          _isLoadingUsage = false;
+        });
+      }
+    }
+  }
 
   static String _getFlag(String? code) {
     switch (code) {
@@ -47,27 +87,6 @@ class ProfileScreen extends StatelessWidget {
         return 'Русский (ru)';
       default:
         return 'Türkçe (tr)';
-    }
-  }
-
-  String _getLanguageDisplayName(String code) {
-    switch (code) {
-      case 'tr':
-        return 'Türkçe 🇹🇷';
-      case 'en':
-        return 'English 🇬🇧';
-      case 'de':
-        return 'Deutsch 🇩🇪';
-      case 'es':
-        return 'Español 🇪🇸';
-      case 'fr':
-        return 'Français 🇫🇷';
-      case 'ar':
-        return 'العربية 🇸🇦';
-      case 'ru':
-        return 'Русский 🇷🇺';
-      default:
-        return code.toUpperCase();
     }
   }
 
@@ -147,156 +166,72 @@ class ProfileScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Drag Handle Indicator
                     Center(
                       child: Container(
-                        width: 32,
-                        height: 3.5,
+                        width: 36,
+                        height: 4,
                         decoration: BoxDecoration(
                           color: c.bord,
-                          borderRadius: BorderRadius.circular(99),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    // Header Row
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: c.accSoft,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: c.acc.withValues(alpha: 0.3)),
-                          ),
-                          child: Icon(Icons.language_rounded, color: c.accTx, size: 16),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.language_rounded, color: c.accTx, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
                             AppTranslations.tr('language_pref', lang),
-                            style: GoogleFonts.schibstedGrotesk(
-                              color: c.tx,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.5,
-                              letterSpacing: -0.2,
-                            ),
+                            style: GoogleFonts.schibstedGrotesk(fontSize: 16, fontWeight: FontWeight.w700, color: c.tx),
                           ),
-                        ),
-                        InkWell(
-                          onTap: () => Navigator.pop(sheetContext),
-                          borderRadius: BorderRadius.circular(99),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: c.bg,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: c.bordSoft),
-                            ),
-                            child: Icon(Icons.close_rounded, color: c.tx2, size: 16),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Divider(color: c.bordSoft, height: 1),
-                    const SizedBox(height: 10),
-                    // Compact Language Item Cards List
+                    const SizedBox(height: 8),
                     Flexible(
                       child: SingleChildScrollView(
                         child: Column(
-                          children: languages.map((item) {
-                            final isSel = authProvider.language == item['code'];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 5.0),
+                          mainAxisSize: MainAxisSize.min,
+                          children: languages.map((l) {
+                            final isSelected = authProvider.language == l['code'];
+                            return Material(
+                              color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () async {
-                                  Navigator.pop(sheetContext);
-                                  if (item['code'] == authProvider.language) return;
-                                  try {
-                                    await authProvider.updateLanguage(item['code']!);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).clearSnackBars();
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          backgroundColor: c.surf,
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                            side: BorderSide(color: c.acc),
-                                          ),
-                                          content: Text(
-                                            '${AppTranslations.tr('lang_updated', item['code']!)}: ${_getLanguageDisplayName(item['code']!)}',
-                                            style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.w600),
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).clearSnackBars();
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${AppTranslations.tr('error', lang)}: ${e.toString().replaceAll("Exception: ", "")}'),
-                                          backgroundColor: Colors.redAccent,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  }
+                                  Navigator.of(sheetContext).pop();
+                                  await authProvider.updateLanguage(l['code']!);
                                 },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  margin: const EdgeInsets.symmetric(vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: isSel ? c.accSoft : c.bg,
+                                    color: isSelected ? c.accSoft : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isSel ? c.acc : c.bordSoft,
-                                      width: isSel ? 1.5 : 1,
-                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      // Flag Icon Container
-                                      Container(
-                                        width: 30,
-                                        height: 30,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: isSel
-                                              ? c.acc.withValues(alpha: 0.15)
-                                              : c.surf,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: isSel
-                                                ? c.acc.withValues(alpha: 0.3)
-                                                : c.bordSoft,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          item['flag']!,
-                                          style: const TextStyle(fontSize: 16),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      // Language Name
+                                      Text(l['flag']!, style: const TextStyle(fontSize: 20)),
+                                      const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          item['name']!,
+                                          l['name']!,
                                           style: GoogleFonts.schibstedGrotesk(
-                                            color: isSel ? c.accTx : c.tx,
-                                            fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
-                                            fontSize: 13.5,
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                            color: isSelected ? c.accTx : c.tx,
                                           ),
                                         ),
                                       ),
-                                      // Selected Checkmark Badge / Chevron Indicator
-                                      if (isSel)
+                                      if (isSelected)
                                         Container(
-                                          width: 20,
-                                          height: 20,
+                                          width: 22,
+                                          height: 22,
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
                                             color: c.acc,
@@ -325,6 +260,220 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildQuotaProgressItem({
+    required BuildContext context,
+    required String label,
+    required int used,
+    required int limit,
+    required int remaining,
+    required bool isToken,
+    required String lang,
+  }) {
+    final c = context.colors;
+    final double ratio = limit > 0 ? (used / limit).clamp(0.0, 1.0) : 0.0;
+
+    Color progressColor = const Color(0xFF3B82F6); // Blue
+    if (ratio >= 0.90) {
+      progressColor = const Color(0xFFEF4444); // Red
+    } else if (ratio >= 0.75) {
+      progressColor = const Color(0xFFF59E0B); // Amber
+    }
+
+    final String usedStr = isToken ? _formatNumber(used) : used.toString();
+    final String limitStr = isToken ? _formatNumber(limit) : limit.toString();
+    final String remainingStr = isToken ? _formatNumber(remaining) : remaining.toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.schibstedGrotesk(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.tx),
+              ),
+            ),
+            RichText(
+              text: TextSpan(
+                style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx2),
+                children: [
+                  TextSpan(text: '$usedStr / $limitStr', style: TextStyle(fontWeight: FontWeight.w700, color: progressColor)),
+                  TextSpan(text: ' (${AppTranslations.tr('remaining', lang)}: $remainingStr)', style: TextStyle(color: c.tx3, fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: ratio,
+            minHeight: 7,
+            backgroundColor: c.surf2,
+            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      final val = number / 1000000;
+      return val % 1 == 0 ? '${val.toInt()}M' : '${val.toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      final val = number / 1000;
+      return val % 1 == 0 ? '${val.toInt()}k' : '${val.toStringAsFixed(1)}k';
+    }
+    return number.toString();
+  }
+
+  Widget _buildQuotaCard(BuildContext context, String lang) {
+    final c = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: c.surf,
+        border: Border.all(color: c.bordSoft),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isQuotaExpanded = !_isQuotaExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF3B82F6), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppTranslations.tr('quota_usage_title', lang),
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 15, fontWeight: FontWeight.w700, color: c.tx),
+                      ),
+                      Text(
+                        'Gemini API günlük kota tüketimi',
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 11.5, color: c.tx3),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loadUsageStats,
+                  tooltip: 'Yenile',
+                  icon: _isLoadingUsage
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: c.acc))
+                      : Icon(Icons.refresh_rounded, size: 18, color: c.tx3),
+                ),
+                const SizedBox(width: 4),
+                AnimatedRotation(
+                  turns: _isQuotaExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: c.tx3,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _isQuotaExpanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Divider(color: c.bordSoft, height: 1),
+                      const SizedBox(height: 16),
+
+                      if (_usageError.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(_usageError, style: TextStyle(color: AppColors.dangerTx, fontSize: 12)),
+                        )
+                      else if (_usageStats != null) ...[
+                        _buildQuotaProgressItem(
+                          context: context,
+                          label: AppTranslations.tr('daily_tokens', lang),
+                          used: (_usageStats!['daily_tokens_used'] as num?)?.toInt() ?? 0,
+                          limit: (_usageStats!['daily_tokens_limit'] as num?)?.toInt() ?? 30000,
+                          remaining: (_usageStats!['daily_tokens_remaining'] as num?)?.toInt() ?? 0,
+                          isToken: true,
+                          lang: lang,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildQuotaProgressItem(
+                          context: context,
+                          label: AppTranslations.tr('daily_edits', lang),
+                          used: (_usageStats!['daily_edits_used'] as num?)?.toInt() ?? 0,
+                          limit: (_usageStats!['daily_edits_limit'] as num?)?.toInt() ?? 20,
+                          remaining: (_usageStats!['daily_edits_remaining'] as num?)?.toInt() ?? 0,
+                          isToken: false,
+                          lang: lang,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildQuotaProgressItem(
+                          context: context,
+                          label: AppTranslations.tr('daily_creates', lang),
+                          used: (_usageStats!['daily_creates_used'] as num?)?.toInt() ?? 0,
+                          limit: (_usageStats!['daily_creates_limit'] as num?)?.toInt() ?? 5,
+                          remaining: (_usageStats!['daily_creates_remaining'] as num?)?.toInt() ?? 0,
+                          isToken: false,
+                          lang: lang,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildQuotaProgressItem(
+                          context: context,
+                          label: AppTranslations.tr('room_limit', lang),
+                          used: (_usageStats!['rooms_used'] as num?)?.toInt() ?? 0,
+                          limit: (_usageStats!['rooms_limit'] as num?)?.toInt() ?? 1,
+                          remaining: (_usageStats!['rooms_remaining'] as num?)?.toInt() ?? 0,
+                          isToken: false,
+                          lang: lang,
+                        ),
+                      ] else ...[
+                        const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
+                      ],
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -337,6 +486,7 @@ class ProfileScreen extends StatelessWidget {
     final roleLabel = authProvider.role == 'admin'
         ? AppTranslations.tr('admin_role', lang)
         : AppTranslations.tr('user_role', lang);
+    final currentTier = authProvider.subscriptionTier;
 
     return SingleChildScrollView(
       padding: isMobile
@@ -387,7 +537,9 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              _buildQuotaCard(context, lang),
+              const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
                   color: c.surf,
@@ -415,6 +567,21 @@ class ProfileScreen extends StatelessWidget {
                           NavigationPersistence.saveState(tabIndex: 3);
                         },
                       ),
+                    _settingsRow(
+                      context: context,
+                      icon: Icons.workspace_premium_outlined,
+                      label: AppTranslations.tr('premium', lang),
+                      valueChild: Text(
+                        'Abonelik & Paket Detayları',
+                        style: GoogleFonts.schibstedGrotesk(fontSize: 14, fontWeight: FontWeight.w600, color: c.tx),
+                      ),
+                      trailing: Icon(Icons.chevron_right_rounded, color: c.tx3),
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const PremiumScreen(showBackButton: true)),
+                        );
+                      },
+                    ),
                     _settingsRow(
                       context: context,
                       icon: Icons.language,
@@ -459,7 +626,6 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-
               ),
               const SizedBox(height: 18),
               OutlinedButton.icon(

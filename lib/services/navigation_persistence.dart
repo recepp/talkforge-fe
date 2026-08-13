@@ -143,7 +143,7 @@ class NavigationPersistence {
       return NavigationState(tabIndex: 1);
     } else if (section == 'invites') {
       return NavigationState(tabIndex: 2);
-    } else if (section == 'profile') {
+    } else if (section == 'premium' || section == 'profile') {
       return NavigationState(tabIndex: 3);
     } else if (section == 'admin') {
       return NavigationState(tabIndex: 4);

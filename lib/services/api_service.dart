@@ -137,6 +137,13 @@ class ApiService {
         return Map<String, dynamic>.from(decoded);
       }
       return decoded;
+    } else if (statusCode == 429) {
+      String errorMessage = 'Kullanım limitinize ulaştınız.';
+      if (decoded is Map && decoded.containsKey('error')) {
+        errorMessage = decoded['error'].toString();
+      }
+      showQuotaExceededDialog(errorMessage);
+      throw Exception(errorMessage);
     } else if (endpoint != '/auth/login' && endpoint != '/auth/signup' && endpoint != '/auth/google' &&
                (statusCode == 401 || (statusCode == 403 && decoded is Map && decoded['error'].toString().toLowerCase().contains('suspended')))) {
       String errorMessage = 'Oturum süresi doldu. Lütfen tekrar giriş yapın.';
@@ -185,6 +192,7 @@ class ApiService {
     await prefs.setString('user_email', data['email'] ?? '');
     await prefs.setString('user_nickname', data['nickname'] ?? '');
     await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_subscription_tier', data['subscription_tier'] ?? 'free');
     await prefs.setString('user_language', data['language'] ?? 'tr');
     await prefs.setInt('user_id', data['user_id'] ?? 0);
 
@@ -205,6 +213,7 @@ class ApiService {
     await prefs.setString('user_email', data['email'] ?? '');
     await prefs.setString('user_nickname', data['nickname'] ?? '');
     await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_subscription_tier', data['subscription_tier'] ?? 'free');
     await prefs.setString('user_language', data['language'] ?? 'tr');
     await prefs.setInt('user_id', data['user_id'] ?? 0);
 
@@ -230,6 +239,7 @@ class ApiService {
     await prefs.setString('user_email', data['email'] ?? '');
     await prefs.setString('user_nickname', data['nickname'] ?? '');
     await prefs.setString('user_role', data['role'] ?? 'user');
+    await prefs.setString('user_subscription_tier', data['subscription_tier'] ?? 'free');
     await prefs.setString('user_language', data['language'] ?? 'tr');
     await prefs.setInt('user_id', data['user_id'] ?? 0);
 
@@ -448,14 +458,16 @@ class ApiService {
     return [];
   }
 
-  /// Update a user's role or suspension status
+  /// Update a user's role, subscription tier, or suspension status
   static Future<Map<String, dynamic>> updateAdminUser(
     int userId, {
     String? role,
+    String? subscriptionTier,
     bool? isSuspended,
   }) async {
     final body = <String, dynamic>{};
     if (role != null) body['role'] = role;
+    if (subscriptionTier != null) body['subscription_tier'] = subscriptionTier;
     if (isSuspended != null) body['is_suspended'] = isSuspended;
 
     final response = await _safePatch(
@@ -471,6 +483,84 @@ class ApiService {
     final data = await _parseResponse(response, endpoint: '/admin/rooms');
     if (data is List) return data;
     return [];
+  }
+
+  /// Fetch user Gemini quota and usage statistics
+  static Future<Map<String, dynamic>> getUserUsage() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/user/usage'));
+    final data = await _parseResponse(response, endpoint: '/user/usage');
+    return data as Map<String, dynamic>;
+  }
+
+  // Get available subscription plans
+  static Future<List<dynamic>> getSubscriptionPlans({String? langCode}) async {
+    final headers = await _getHeaders(langCode);
+    final response = await http.get(
+      Uri.parse('${Constants.baseUrl}/plans'),
+      headers: headers,
+    );
+    final data = await _parseResponse(response);
+    if (data is List) {
+      return data;
+    }
+    return [];
+  }
+
+  // Get user's current subscription details
+  static Future<Map<String, dynamic>> getUserSubscription() async {
+    final response = await _safeGet(Uri.parse('${Constants.baseUrl}/user/subscription'));
+    final data = await _parseResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  // Subscribe to plan endpoint (prepares for payment gateway integration)
+  static Future<Map<String, dynamic>> subscribeToPlan(String tier) async {
+    final response = await _safePost(
+      Uri.parse('${Constants.baseUrl}/user/subscription'),
+      body: jsonEncode({'tier': tier}),
+    );
+    final data = await _parseResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+  /// Shows a modal dialog alerting the user that their Gemini API quota limit has been exceeded.
+  static void showQuotaExceededDialog([String? message]) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E212A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 28),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Kota Limiti Aşıldı',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message ?? 'Gemini API kullanım limitinize ulaştınız. Lütfen daha sonra tekrar deneyin.',
+          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Anladım', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }
 
