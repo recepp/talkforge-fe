@@ -11,6 +11,7 @@ import 'rooms_screen.dart';
 import 'profile_screen.dart';
 import 'invites_screen.dart';
 import 'admin_screen.dart';
+import 'premium_screen.dart';
 
 
 import 'room_detail_screen.dart';
@@ -37,6 +38,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     TalksScreen(key: _talksKey),
     RoomsScreen(key: _roomsKey),
     InvitesScreen(key: _invitesKey, onInvitesChanged: _onInvitesChanged),
+    const PremiumScreen(),
     const ProfileScreen(),
     const AdminScreen(),
   ];
@@ -134,7 +136,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context); // rebuild on language changes
-    if (_currentIndex == 4 && authProvider.role != 'admin') {
+    if (_currentIndex == 5 && authProvider.role != 'admin') {
       _currentIndex = 0;
     }
     final c = context.colors;
@@ -256,13 +258,23 @@ class _Sidebar extends StatelessWidget {
             badgeCount: pendingInviteCount,
             onTap: () => onTap(2),
           ),
+          if (authProvider.role != 'admin') ...[
+            const SizedBox(height: 4),
+            _NavItem(
+              icon: Icons.workspace_premium_outlined,
+              filledIcon: Icons.workspace_premium,
+              label: AppTranslations.tr('premium', lang),
+              active: currentIndex == 3,
+              onTap: () => onTap(3),
+            ),
+          ],
           const SizedBox(height: 4),
           _NavItem(
             icon: Icons.account_circle_outlined,
             filledIcon: Icons.account_circle,
             label: AppTranslations.tr('my_profile', lang),
-            active: currentIndex == 3,
-            onTap: () => onTap(3),
+            active: currentIndex == 4,
+            onTap: () => onTap(4),
           ),
           if (authProvider.role == 'admin') ...[
             const SizedBox(height: 4),
@@ -270,8 +282,8 @@ class _Sidebar extends StatelessWidget {
               icon: Icons.admin_panel_settings_outlined,
               filledIcon: Icons.admin_panel_settings,
               label: AppTranslations.tr('admin_panel', lang),
-              active: currentIndex == 4,
-              onTap: () => onTap(4),
+              active: currentIndex == 5,
+              onTap: () => onTap(5),
             ),
           ],
 
@@ -297,7 +309,7 @@ class _Sidebar extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(9),
-              onTap: () => onTap(3),
+              onTap: () => onTap(4),
               hoverColor: c.accSoft,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -522,20 +534,28 @@ class _MobileBottomNav extends StatelessWidget {
               badgeCount: pendingInviteCount,
               onTap: () => onTap(2),
             ),
+            if (Provider.of<AuthProvider>(context).role != 'admin')
+              _MobileNavItem(
+                icon: Icons.workspace_premium_outlined,
+                filledIcon: Icons.workspace_premium,
+                label: AppTranslations.tr('premium', lang),
+                active: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
             _MobileNavItem(
               icon: Icons.account_circle_outlined,
               filledIcon: Icons.account_circle,
               label: AppTranslations.tr('my_profile', lang),
-              active: currentIndex == 3,
-              onTap: () => onTap(3),
+              active: currentIndex == 4,
+              onTap: () => onTap(4),
             ),
             if (Provider.of<AuthProvider>(context).role == 'admin')
               _MobileNavItem(
                 icon: Icons.admin_panel_settings_outlined,
                 filledIcon: Icons.admin_panel_settings,
                 label: AppTranslations.tr('admin_panel', lang),
-                active: currentIndex == 4,
-                onTap: () => onTap(4),
+                active: currentIndex == 5,
+                onTap: () => onTap(5),
               ),
           ],
         ),

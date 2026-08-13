@@ -8,6 +8,7 @@ class AuthProvider extends ChangeNotifier {
   String? _email;
   String? _nickname;
   String? _role;
+  String? _subscriptionTier;
   String? _language;
 
   bool get isAuthenticated => _isAuthenticated;
@@ -15,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   String? get email => _email;
   String? get nickname => _nickname;
   String? get role => _role;
+  String get subscriptionTier => _subscriptionTier ?? 'free';
   String get language => _language ?? 'tr';
 
   AuthProvider() {
@@ -27,6 +29,7 @@ class AuthProvider extends ChangeNotifier {
     _email = null;
     _nickname = null;
     _role = null;
+    _subscriptionTier = null;
     _language = null;
     notifyListeners();
   }
@@ -40,6 +43,7 @@ class AuthProvider extends ChangeNotifier {
       _email = prefs.getString('user_email');
       _nickname = prefs.getString('user_nickname');
       _role = prefs.getString('user_role');
+      _subscriptionTier = prefs.getString('user_subscription_tier') ?? 'free';
       _language = prefs.getString('user_language') ?? 'tr';
     } else {
       await prefs.clear();
@@ -57,6 +61,7 @@ class AuthProvider extends ChangeNotifier {
       _email = data['email'];
       _nickname = data['nickname'];
       _role = data['role'];
+      _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
       notifyListeners();
     } catch (e) {
@@ -73,6 +78,7 @@ class AuthProvider extends ChangeNotifier {
       _email = data['email'];
       _nickname = data['nickname'];
       _role = data['role'];
+      _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
       notifyListeners();
     } catch (e) {
@@ -89,6 +95,7 @@ class AuthProvider extends ChangeNotifier {
       _email = data['email'];
       _nickname = data['nickname'];
       _role = data['role'];
+      _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
       notifyListeners();
     } catch (e) {
@@ -117,6 +124,7 @@ class AuthProvider extends ChangeNotifier {
     _email = null;
     _nickname = null;
     _role = null;
+    _subscriptionTier = null;
     _language = null;
     notifyListeners();
   }

@@ -41,6 +41,17 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      final val = number / 1000000;
+      return val % 1 == 0 ? '${val.toInt()}M' : '${val.toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      final val = number / 1000;
+      return val % 1 == 0 ? '${val.toInt()}k' : '${val.toStringAsFixed(1)}k';
+    }
+    return number.toString();
+  }
+
   Future<void> _loadAllData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.role != 'admin') {
@@ -245,7 +256,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                           ],
                         ),
                         Text(
-                          '$talkCount konuşma · $geminiCount Gemini',
+                          '$talkCount konuşma · $geminiCount Gemini · ${_formatNumber((user['gemini_token_count'] as num?)?.toInt() ?? 0)} token',
                           style: GoogleFonts.schibstedGrotesk(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -451,6 +462,413 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     }
   }
 
+  String _getTierName(String? tier) {
+    switch ((tier ?? '').toLowerCase()) {
+      case 'pro':
+        return 'Pro Paket';
+      case 'enterprise':
+        return 'Enterprise Paket';
+      case 'free':
+      default:
+        return 'Ücretsiz Paket';
+    }
+  }
+
+  Color _getTierColor(String? tier) {
+    switch ((tier ?? '').toLowerCase()) {
+      case 'pro':
+        return const Color(0xFFA855F7);
+      case 'enterprise':
+        return const Color(0xFFF59E0B);
+      case 'free':
+      default:
+        return const Color(0xFF3B82F6);
+    }
+  }
+
+  String _formatDate(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '-';
+    try {
+      final dt = DateTime.parse(isoDate).toLocal();
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = dt.month.toString().padLeft(2, '0');
+      final year = dt.year;
+      return '$day.$month.$year';
+    } catch (_) {
+      return isoDate;
+    }
+  }
+
+  Widget _dialogDetailRow(
+    AppColors c, {
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? valueColor,
+    bool isBadge = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: c.bordSoft.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: valueColor ?? c.tx3),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.schibstedGrotesk(fontSize: 13, fontWeight: FontWeight.w500, color: c.tx2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (isBadge)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: (valueColor ?? c.acc).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: (valueColor ?? c.acc).withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                value,
+                style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.bold, color: valueColor ?? c.acc),
+              ),
+            )
+          else
+            Text(
+              value,
+              style: GoogleFonts.schibstedGrotesk(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? c.tx,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showUserInfoDialog(Map<String, dynamic> initialUser) async {
+    final c = context.colors;
+    Map<String, dynamic> user = Map<String, dynamic>.from(initialUser);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            final nickname = user['nickname'] as String? ?? 'Kullanıcı';
+            final email = (user['email'] as String? ?? '').toLowerCase();
+            final avatar = user['avatar'] as String? ?? '👤';
+            final role = user['role'] as String? ?? 'user';
+            final isAdmin = role == 'admin';
+            final isSuspended = user['is_suspended'] as bool? ?? false;
+            final isSuperAdmin = email == 'admin@talkforge.local';
+            final tier = user['subscription_tier'] as String? ?? 'free';
+            final talkCount = (user['talk_count'] as num?)?.toInt() ?? 0;
+            final geminiCount = (user['gemini_call_count'] as num?)?.toInt() ?? 0;
+            final tokenCount = (user['gemini_token_count'] as num?)?.toInt() ?? 0;
+            final language = user['language'] as String? ?? 'tr';
+            final createdAt = user['created_at'] as String? ?? '';
+            final userId = user['id'] as int;
+
+            final tierName = _getTierName(tier);
+            final tierColor = _getTierColor(tier);
+
+            return AlertDialog(
+              backgroundColor: c.surf,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: c.bordSoft),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: c.acc.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: c.acc.withValues(alpha: 0.3)),
+                    ),
+                    child: Icon(Icons.badge_rounded, color: c.acc, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Kullanıcı Bilgileri',
+                      style: GoogleFonts.schibstedGrotesk(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: c.tx,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: Icon(Icons.close_rounded, color: c.tx3, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header profile card inside dialog
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: c.bg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: c.bordSoft),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: c.surf,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: c.bordSoft),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(avatar, style: const TextStyle(fontSize: 22)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          nickname,
+                                          style: GoogleFonts.schibstedGrotesk(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: c.tx,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isAdmin ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: isAdmin ? const Color(0xFFF59E0B).withValues(alpha: 0.3) : const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          isAdmin ? 'ADMIN' : 'KULLANICI',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: isAdmin ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6),
+                                          ),
+                                        ),
+                                      ),
+                                      if (isSuspended) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                          ),
+                                          child: const Text(
+                                            'ASKIDA',
+                                            style: TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.redAccent,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    email,
+                                    style: GoogleFonts.schibstedGrotesk(fontSize: 12, color: c.tx2),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Detail items
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.workspace_premium_rounded,
+                        label: 'Aktif Paket',
+                        value: tierName,
+                        valueColor: tierColor,
+                        isBadge: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.token_rounded,
+                        label: 'Kullanılan Toplam Token',
+                        value: _formatNumber(tokenCount),
+                        valueColor: const Color(0xFF10B981),
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.auto_awesome_rounded,
+                        label: 'Gemini Çağrı Sayısı',
+                        value: '$geminiCount çağrı',
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.graphic_eq_rounded,
+                        label: 'Toplam Konuşma',
+                        value: '$talkCount konuşma',
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.language_rounded,
+                        label: 'Dil Tercihi',
+                        value: language.toUpperCase(),
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: Icons.calendar_today_rounded,
+                        label: 'Kayıt Tarihi',
+                        value: _formatDate(createdAt),
+                      ),
+                      const SizedBox(height: 8),
+                      _dialogDetailRow(
+                        c,
+                        icon: isSuspended ? Icons.block_rounded : Icons.check_circle_rounded,
+                        label: 'Hesap Durumu',
+                        value: isSuspended ? 'Askıda' : 'Aktif',
+                        valueColor: isSuspended ? Colors.redAccent : const Color(0xFF10B981),
+                      ),
+
+                      if (!isSuperAdmin) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Kullanıcı İşlemleri',
+                          style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx3),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final newRole = isAdmin ? 'user' : 'admin';
+                                  try {
+                                    final updated = await ApiService.updateAdminUser(userId, role: newRole);
+                                    setState(() {
+                                      final idx = _users.indexWhere((u) => u['id'] == userId);
+                                      if (idx != -1) _users[idx] = updated;
+                                    });
+                                    setDialogState(() => user = Map<String, dynamic>.from(updated));
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Rol güncellenemedi: ${e.toString()}'), backgroundColor: Colors.redAccent),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: Icon(isAdmin ? Icons.person_rounded : Icons.admin_panel_settings_rounded, size: 16),
+                                label: Text(
+                                  isAdmin ? 'User Yap' : 'Admin Yap',
+                                  style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: c.tx,
+                                  side: BorderSide(color: c.bordSoft),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final newSuspended = !isSuspended;
+                                  try {
+                                    final updated = await ApiService.updateAdminUser(userId, isSuspended: newSuspended);
+                                    setState(() {
+                                      final idx = _users.indexWhere((u) => u['id'] == userId);
+                                      if (idx != -1) _users[idx] = updated;
+                                    });
+                                    setDialogState(() => user = Map<String, dynamic>.from(updated));
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Durum güncellenemedi: ${e.toString()}'), backgroundColor: Colors.redAccent),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: Icon(isSuspended ? Icons.check_circle_rounded : Icons.block_rounded, size: 16),
+                                label: Text(
+                                  isSuspended ? 'Aktifleştir' : 'Askıya Al',
+                                  style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isSuspended ? const Color(0xFF10B981) : Colors.redAccent,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    'Kapat',
+                    style: GoogleFonts.schibstedGrotesk(color: c.tx2, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -612,6 +1030,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final geminiToday = _stats!['gemini_calls_today'] ?? 0;
     final geminiMonth = _stats!['gemini_calls_month'] ?? 0;
     final geminiTotal = _stats!['gemini_calls_total'] ?? 0;
+    final geminiTokensToday = (_stats!['gemini_tokens_today'] as num?)?.toInt() ?? 0;
+    final geminiTokensMonth = (_stats!['gemini_tokens_month'] as num?)?.toInt() ?? 0;
+    final geminiTokensTotal = (_stats!['gemini_tokens_total'] as num?)?.toInt() ?? 0;
 
     final statusCounts = Map<String, dynamic>.from(_stats!['status_counts'] ?? {});
     final pending = statusCounts['pending'] ?? 0;
@@ -775,7 +1196,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Google Gemini AI genel çağrı performansı',
+                            'Google Gemini AI genel çağrı ve harcanan token performansı',
                             style: GoogleFonts.schibstedGrotesk(fontSize: 11, color: c.tx2),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -792,25 +1213,28 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   children: [
                     _geminiMetricTile(
                       c,
-                      label: 'Bugün',
-                      value: '$geminiToday',
-                      color: const Color(0xFFF59E0B),
+                      label: 'Toplam',
+                      calls: geminiTotal,
+                      tokens: geminiTokensTotal,
+                      color: const Color(0xFF6366F1),
                       isMobile: isMobile,
                     ),
                     SizedBox(width: isMobile ? 8 : 16),
                     _geminiMetricTile(
                       c,
                       label: 'Bu Ay',
-                      value: '$geminiMonth',
+                      calls: geminiMonth,
+                      tokens: geminiTokensMonth,
                       color: const Color(0xFF10B981),
                       isMobile: isMobile,
                     ),
                     SizedBox(width: isMobile ? 8 : 16),
                     _geminiMetricTile(
                       c,
-                      label: 'Toplam',
-                      value: '$geminiTotal',
-                      color: const Color(0xFF6366F1),
+                      label: 'Bugün',
+                      calls: geminiToday,
+                      tokens: geminiTokensToday,
+                      color: const Color(0xFFF59E0B),
                       isMobile: isMobile,
                     ),
                   ],
@@ -981,7 +1405,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _geminiMetricTile(AppColors c, {required String label, required String value, required Color color, bool isMobile = false}) {
+  Widget _geminiMetricTile(
+    AppColors c, {
+    required String label,
+    required int calls,
+    required int tokens,
+    required Color color,
+    bool isMobile = false,
+  }) {
+    final tokensStr = _formatNumber(tokens);
     return Expanded(
       child: Container(
         padding: EdgeInsets.all(isMobile ? 10 : 14),
@@ -1014,18 +1446,48 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 ),
               ],
             ),
-            SizedBox(height: isMobile ? 4 : 8),
+            SizedBox(height: isMobile ? 6 : 10),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: GoogleFonts.schibstedGrotesk(
-                  fontSize: isMobile ? 18 : 22,
-                  fontWeight: FontWeight.w800,
-                  color: c.tx,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    tokensStr,
+                    style: GoogleFonts.schibstedGrotesk(
+                      fontSize: isMobile ? 18 : 22,
+                      fontWeight: FontWeight.w800,
+                      color: c.tx,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'token',
+                    style: GoogleFonts.schibstedGrotesk(
+                      fontSize: isMobile ? 11 : 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.bolt_rounded, size: isMobile ? 12 : 13, color: c.tx3),
+                const SizedBox(width: 2),
+                Text(
+                  '$calls çağrı',
+                  style: GoogleFonts.schibstedGrotesk(
+                    fontSize: isMobile ? 10.5 : 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: c.tx2,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1141,9 +1603,6 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     final isSuspended = user['is_suspended'] as bool? ?? false;
                     final role = user['role'] as String? ?? 'user';
                     final isAdmin = role == 'admin';
-                    final email = (user['email'] as String? ?? '').toLowerCase();
-                    final isSuperAdmin = email == 'admin@talkforge.local';
-
                     return Container(
                       padding: EdgeInsets.all(isMobile ? 12 : 16),
                       decoration: BoxDecoration(
@@ -1246,139 +1705,32 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          if (isMobile) ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.graphic_eq_rounded, size: 15, color: c.tx3),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${user['talk_count'] ?? 0} konuşma',
-                                      style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx2),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    Icon(Icons.auto_awesome_rounded, size: 15, color: c.tx3),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${user['gemini_call_count'] ?? 0} Gemini',
-                                      style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx2),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            if (!isSuperAdmin) ...[
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => _toggleUserRole(user),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        side: BorderSide(color: c.bordSoft),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: 'Kullanıcı Bilgileri',
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () => _showUserInfoDialog(user),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: c.acc.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: c.acc.withValues(alpha: 0.3)),
                                       ),
-                                      child: Text(
-                                        isAdmin ? 'User Yap' : 'Admin Yap',
-                                        style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx),
+                                      child: Icon(
+                                        Icons.info_outline_rounded,
+                                        color: c.accTx,
+                                        size: 20,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: () => _toggleUserSuspension(user),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: isSuspended ? const Color(0xFF10B981) : Colors.redAccent,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      ),
-                                      child: Text(
-                                        isSuspended ? 'Aktifleştir' : 'Askıya Al',
-                                        style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
-                          ] else ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.graphic_eq_rounded, size: 16, color: c.tx3),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${user['talk_count'] ?? 0} konuşma',
-                                      style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx2),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Icon(Icons.auto_awesome_rounded, size: 16, color: c.tx3),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '${user['gemini_call_count'] ?? 0} Gemini',
-                                      style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx2),
-                                    ),
-                                  ],
-                                ),
-                                if (!isSuperAdmin)
-                                  Row(
-                                    children: [
-                                      OutlinedButton(
-                                        onPressed: () => _toggleUserRole(user),
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          side: BorderSide(color: c.bordSoft),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        ),
-                                        child: Text(
-                                          isAdmin ? 'User Yap' : 'Admin Yap',
-                                          style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w600, color: c.tx),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      ElevatedButton(
-                                        onPressed: () => _toggleUserSuspension(user),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: isSuspended ? const Color(0xFF10B981) : Colors.redAccent,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        ),
-                                        child: Text(
-                                          isSuspended ? 'Aktifleştir' : 'Askıya Al',
-                                          style: GoogleFonts.schibstedGrotesk(fontSize: 12, fontWeight: FontWeight.w700),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ],
                       ),
                     );

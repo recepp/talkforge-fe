@@ -53,6 +53,19 @@ class RoomsScreenState extends State<RoomsScreen> {
 
   Future<void> _createRoom() async {
     final lang = Provider.of<AuthProvider>(context, listen: false).language;
+    if (_rooms.length >= 3) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 3),
+            content: const Text('En fazla 3 odada yer alabilirsiniz. Oda limitinize ulaştınız.'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
     final c = context.colors;
     final controller = TextEditingController();
     final name = await showDialog<String>(
