@@ -474,6 +474,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 
 
+  void _showEditNicknameDialog(BuildContext context, AuthProvider authProvider, String currentNickname) {
+    final controller = TextEditingController(text: currentNickname);
+    final c = context.colors;
+    bool isSubmitting = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: c.surf,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: c.bordSoft)),
+              title: Text(
+                'Kullanıcı Adını Düzenle',
+                style: GoogleFonts.schibstedGrotesk(fontWeight: FontWeight.w700, color: c.tx, fontSize: 18),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Yeni kullanıcı adı',
+                      hintStyle: GoogleFonts.schibstedGrotesk(color: c.tx3),
+                      errorText: errorText,
+                      filled: true,
+                      fillColor: c.bg,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.bord)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.bordSoft)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: c.acc)),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                  child: Text('İptal', style: TextStyle(color: c.tx3)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: c.acc,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final newNick = controller.text.trim();
+                          if (newNick.isEmpty) {
+                            setDialogState(() => errorText = 'Kullanıcı adı boş bırakılamaz.');
+                            return;
+                          }
+                          if (newNick.length < 2 || newNick.length > 40) {
+                            setDialogState(() => errorText = '2-40 karakter arasında olmalıdır.');
+                            return;
+                          }
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorText = null;
+                          });
+                          try {
+                            await authProvider.updateNickname(newNick);
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Kullanıcı adı başarıyla güncellendi.'),
+                                  backgroundColor: Colors.green.shade700,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorText = e.toString().replaceAll('Exception: ', '');
+                            });
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Kaydet'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -525,7 +623,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(nickname, style: GoogleFonts.schibstedGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: c.tx)),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  nickname,
+                                  style: GoogleFonts.schibstedGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: c.tx),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: () => _showEditNicknameDialog(context, authProvider, nickname),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(Icons.edit_outlined, size: 16, color: c.accTx),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             '${authProvider.email ?? ''} · $roleLabel',

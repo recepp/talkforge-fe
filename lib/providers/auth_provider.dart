@@ -104,6 +104,17 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Update User Nickname
+  Future<void> updateNickname(String newNickname) async {
+    try {
+      await ApiService.updateNickname(newNickname);
+      _nickname = newNickname;
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Update Language Preference
   Future<void> updateLanguage(String newLang) async {
     try {

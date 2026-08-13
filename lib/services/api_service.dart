@@ -246,6 +246,18 @@ class ApiService {
     return data;
   }
 
+  // Update User Profile (Nickname)
+  static Future<Map<String, dynamic>> updateNickname(String nickname) async {
+    final response = await _safePut(
+      Uri.parse('${Constants.baseUrl}/user/profile'),
+      body: jsonEncode({'nickname': nickname}),
+    );
+    final data = await _parseResponse(response, endpoint: '/user/profile') as Map<String, dynamic>;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_nickname', nickname);
+    return data;
+  }
+
   // Update User Language Preference
   static Future<Map<String, dynamic>> updateLanguage(String language) async {
     final response = await _safePut(
