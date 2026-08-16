@@ -126,6 +126,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Update Subscription Tier locally & in preferences
+  Future<void> updateSubscriptionTier(String newTier) async {
+    _subscriptionTier = newTier;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_subscription_tier', newTier);
+    notifyListeners();
+  }
+
   // Logout
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
