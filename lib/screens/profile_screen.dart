@@ -677,11 +677,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         trailing: Icon(Icons.chevron_right_rounded, color: c.tx3),
                         onTap: () async {
-                          NavigationPersistence.saveState(tabIndex: 4);
+                          NavigationPersistence.saveState(tabIndex: 5);
                           await Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const AdminScreen(showBackButton: true)),
                           );
-                          NavigationPersistence.saveState(tabIndex: 3);
+                          NavigationPersistence.saveState(tabIndex: 4);
                         },
                       ),
                     _settingsRow(

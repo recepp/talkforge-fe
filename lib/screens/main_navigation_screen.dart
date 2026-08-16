@@ -9,7 +9,6 @@ import '../theme/app_theme.dart';
 import 'talks_screen.dart';
 import 'rooms_screen.dart';
 import 'profile_screen.dart';
-import 'invites_screen.dart';
 import 'admin_screen.dart';
 import 'premium_screen.dart';
 
@@ -32,21 +31,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Timer? _inviteRefreshTimer;
   final _talksKey = GlobalKey<TalksScreenState>();
   final _roomsKey = GlobalKey<RoomsScreenState>();
-  final _invitesKey = GlobalKey<InvitesScreenState>();
 
   late final List<Widget> _screens = [
     TalksScreen(key: _talksKey),
     RoomsScreen(key: _roomsKey),
-    InvitesScreen(key: _invitesKey, onInvitesChanged: _onInvitesChanged),
     const PremiumScreen(),
     const ProfileScreen(),
     const AdminScreen(),
   ];
-
-  void _onInvitesChanged() {
-    _loadCounts();
-    _roomsKey.currentState?.fetchRooms(showLoading: false);
-  }
 
   @override
   void initState() {
@@ -128,15 +120,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     _loadCounts();
     if (i == 1) {
       _roomsKey.currentState?.fetchRooms();
-    } else if (i == 2) {
-      _invitesKey.currentState?.fetchInvites().then((_) => _loadCounts());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context); // rebuild on language changes
-    if (_currentIndex == 5 && authProvider.role != 'admin') {
+    if (_currentIndex == 4 && authProvider.role != 'admin') {
       _currentIndex = 0;
     }
     final c = context.colors;
@@ -249,23 +239,14 @@ class _Sidebar extends StatelessWidget {
             badgeCount: unreadRoomCount,
             onTap: () => onTap(1),
           ),
-          const SizedBox(height: 4),
-          _NavItemBadge(
-            icon: Icons.mail_outline_rounded,
-            filledIcon: Icons.mail_rounded,
-            label: AppTranslations.tr('invites', lang),
-            active: currentIndex == 2,
-            badgeCount: pendingInviteCount,
-            onTap: () => onTap(2),
-          ),
           if (authProvider.role != 'admin') ...[
             const SizedBox(height: 4),
             _NavItem(
               icon: Icons.workspace_premium_outlined,
               filledIcon: Icons.workspace_premium,
               label: AppTranslations.tr('premium', lang),
-              active: currentIndex == 3,
-              onTap: () => onTap(3),
+              active: currentIndex == 2,
+              onTap: () => onTap(2),
             ),
           ],
           const SizedBox(height: 4),
@@ -273,8 +254,8 @@ class _Sidebar extends StatelessWidget {
             icon: Icons.account_circle_outlined,
             filledIcon: Icons.account_circle,
             label: AppTranslations.tr('my_profile', lang),
-            active: currentIndex == 4,
-            onTap: () => onTap(4),
+            active: currentIndex == 3,
+            onTap: () => onTap(3),
           ),
           if (authProvider.role == 'admin') ...[
             const SizedBox(height: 4),
@@ -282,8 +263,8 @@ class _Sidebar extends StatelessWidget {
               icon: Icons.admin_panel_settings_outlined,
               filledIcon: Icons.admin_panel_settings,
               label: AppTranslations.tr('admin_panel', lang),
-              active: currentIndex == 5,
-              onTap: () => onTap(5),
+              active: currentIndex == 4,
+              onTap: () => onTap(4),
             ),
           ],
 
@@ -309,7 +290,7 @@ class _Sidebar extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(9),
-              onTap: () => onTap(4),
+              onTap: () => onTap(3),
               hoverColor: c.accSoft,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -526,36 +507,28 @@ class _MobileBottomNav extends StatelessWidget {
               badgeCount: unreadRoomCount,
               onTap: () => onTap(1),
             ),
-            _MobileNavItemBadge(
-              icon: Icons.mail_outline_rounded,
-              filledIcon: Icons.mail_rounded,
-              label: AppTranslations.tr('invites', lang),
-              active: currentIndex == 2,
-              badgeCount: pendingInviteCount,
-              onTap: () => onTap(2),
-            ),
             if (Provider.of<AuthProvider>(context).role != 'admin')
               _MobileNavItem(
                 icon: Icons.workspace_premium_outlined,
                 filledIcon: Icons.workspace_premium,
                 label: AppTranslations.tr('premium', lang),
-                active: currentIndex == 3,
-                onTap: () => onTap(3),
+                active: currentIndex == 2,
+                onTap: () => onTap(2),
               ),
             _MobileNavItem(
               icon: Icons.account_circle_outlined,
               filledIcon: Icons.account_circle,
               label: AppTranslations.tr('my_profile', lang),
-              active: currentIndex == 4,
-              onTap: () => onTap(4),
+              active: currentIndex == 3,
+              onTap: () => onTap(3),
             ),
             if (Provider.of<AuthProvider>(context).role == 'admin')
               _MobileNavItem(
                 icon: Icons.admin_panel_settings_outlined,
                 filledIcon: Icons.admin_panel_settings,
                 label: AppTranslations.tr('admin_panel', lang),
-                active: currentIndex == 5,
-                onTap: () => onTap(5),
+                active: currentIndex == 4,
+                onTap: () => onTap(4),
               ),
           ],
         ),
