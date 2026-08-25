@@ -45,8 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialErrorMessage != null && widget.initialErrorMessage!.isNotEmpty) {
-      _errorMessage = widget.initialErrorMessage!;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final initialErr = widget.initialErrorMessage ?? authProvider.authErrorMessage;
+    if (initialErr != null && initialErr.isNotEmpty) {
+      _errorMessage = initialErr;
+      authProvider.clearAuthErrorMessage();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _errorMessage.isNotEmpty) {
           _showError(_errorMessage);

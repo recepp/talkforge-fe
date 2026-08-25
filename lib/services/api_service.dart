@@ -7,7 +7,7 @@ import '../screens/login_screen.dart';
 
 class ApiService {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-  static Future<void> Function()? onUnauthorized;
+  static Future<void> Function([String? message])? onUnauthorized;
   static bool _isHandling401 = false;
 
   static bool isValidToken(String token) {
@@ -104,17 +104,16 @@ class ApiService {
     if (_isHandling401) return;
     _isHandling401 = true;
     try {
-      if (onUnauthorized != null) {
-        await onUnauthorized!();
-      }
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginScreen(initialErrorMessage: message)),
-        (route) => false,
-      );
+      if (onUnauthorized != null) {
+        await onUnauthorized!(message);
+      }
+
+      if (navigatorKey.currentState != null && navigatorKey.currentState!.canPop()) {
+        navigatorKey.currentState!.popUntil((route) => route.isFirst);
+      }
     } finally {
       _isHandling401 = false;
     }
