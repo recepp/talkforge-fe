@@ -117,20 +117,27 @@ class _InvitesBottomSheetState extends State<InvitesBottomSheet> {
     final mediaQuery = MediaQuery.of(context);
     final maxHeight = mediaQuery.size.height * 0.75;
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: BoxDecoration(
-        color: c.surf,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: c.bord, width: 1.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
-          ),
-        ],
-      ),
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: maxHeight,
+          maxWidth: isMobile ? double.infinity : 560,
+        ),
+        decoration: BoxDecoration(
+          color: c.surf,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: c.bord, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 24,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -204,8 +211,9 @@ class _InvitesBottomSheetState extends State<InvitesBottomSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildContent(AppColors c, String lang) {
     if (_isLoading) {

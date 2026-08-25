@@ -64,7 +64,7 @@ class NavigationPersistence {
             hash = '#/rooms';
             break;
           case 2:
-            hash = '#/invites';
+            hash = '#/premium';
             break;
           case 3:
             hash = '#/profile';
@@ -132,7 +132,7 @@ class NavigationPersistence {
         );
       }
       return NavigationState(tabIndex: 0);
-    } else if (section == 'rooms' || section == 'room') {
+    } else if (section == 'rooms' || section == 'room' || section == 'invites') {
       if (parts.length >= 2 && int.tryParse(parts[1]) != null) {
         return NavigationState(
           tabIndex: 1,
@@ -141,9 +141,9 @@ class NavigationPersistence {
         );
       }
       return NavigationState(tabIndex: 1);
-    } else if (section == 'invites') {
+    } else if (section == 'premium') {
       return NavigationState(tabIndex: 2);
-    } else if (section == 'premium' || section == 'profile') {
+    } else if (section == 'profile') {
       return NavigationState(tabIndex: 3);
     } else if (section == 'admin') {
       return NavigationState(tabIndex: 4);

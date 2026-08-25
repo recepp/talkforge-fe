@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../services/app_translations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/invites_bottom_sheet.dart';
 import 'room_detail_screen.dart';
 import '../services/navigation_persistence.dart';
 
@@ -17,6 +18,7 @@ class RoomsScreen extends StatefulWidget {
 
 class RoomsScreenState extends State<RoomsScreen> {
   List<dynamic> _rooms = [];
+  int _pendingInviteCount = 0;
   bool _isLoading = true;
   String _error = '';
 
@@ -34,10 +36,16 @@ class RoomsScreenState extends State<RoomsScreen> {
       });
     }
     try {
-      final rooms = await ApiService.getRooms();
+      final results = await Future.wait([
+        ApiService.getRooms(),
+        ApiService.getInvites().catchError((_) => <dynamic>[]),
+      ]);
+      final rooms = results[0];
+      final invites = results[1];
       if (mounted) {
         setState(() {
           _rooms = rooms;
+          _pendingInviteCount = invites.length;
           _isLoading = false;
         });
       }
@@ -254,6 +262,77 @@ class RoomsScreenState extends State<RoomsScreen> {
                       ),
                     ),
                     const Spacer(),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        InvitesBottomSheet.show(
+                          context,
+                          onInvitesChanged: () => fetchRooms(showLoading: false),
+                        );
+                      },
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            Icons.mail_outline_rounded,
+                            size: 17,
+                            color: _pendingInviteCount > 0 ? const Color(0xFFEF4444) : c.accTx,
+                          ),
+                          if (_pendingInviteCount > 0)
+                            Positioned(
+                              top: -3,
+                              right: -3,
+                              child: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            AppTranslations.tr('invites', lang),
+                            style: GoogleFonts.schibstedGrotesk(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (_pendingInviteCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                '$_pendingInviteCount',
+                                style: GoogleFonts.schibstedGrotesk(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _pendingInviteCount > 0 ? const Color(0xFFEF4444) : c.accTx,
+                        side: BorderSide(
+                          color: _pendingInviteCount > 0 ? const Color(0x88EF4444) : c.bord,
+                        ),
+                        backgroundColor: _pendingInviteCount > 0 ? const Color(0x11EF4444) : c.surf,
+                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       onPressed: fetchRooms,
                       icon: Icon(Icons.refresh_rounded, color: c.tx3, size: 20),

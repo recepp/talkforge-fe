@@ -10,6 +10,7 @@ class AuthProvider extends ChangeNotifier {
   String? _role;
   String? _subscriptionTier;
   String? _language;
+  String? _authErrorMessage;
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
@@ -18,19 +19,31 @@ class AuthProvider extends ChangeNotifier {
   String? get role => _role;
   String get subscriptionTier => _subscriptionTier ?? 'free';
   String get language => _language ?? 'tr';
+  String? get authErrorMessage => _authErrorMessage;
+
+  void clearAuthErrorMessage() {
+    _authErrorMessage = null;
+  }
 
   AuthProvider() {
     ApiService.onUnauthorized = _handleUnauthorized;
     checkAuthStatus();
   }
 
-  Future<void> _handleUnauthorized() async {
+  void _clearNavigatorStack() {
+    if (ApiService.navigatorKey.currentState != null && ApiService.navigatorKey.currentState!.canPop()) {
+      ApiService.navigatorKey.currentState!.popUntil((route) => route.isFirst);
+    }
+  }
+
+  Future<void> _handleUnauthorized([String? message]) async {
     _isAuthenticated = false;
     _email = null;
     _nickname = null;
     _role = null;
     _subscriptionTier = null;
     _language = null;
+    _authErrorMessage = message;
     notifyListeners();
   }
 
@@ -63,7 +76,9 @@ class AuthProvider extends ChangeNotifier {
       _role = data['role'];
       _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
+      _authErrorMessage = null;
       notifyListeners();
+      _clearNavigatorStack();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
@@ -80,7 +95,9 @@ class AuthProvider extends ChangeNotifier {
       _role = data['role'];
       _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
+      _authErrorMessage = null;
       notifyListeners();
+      _clearNavigatorStack();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
@@ -97,7 +114,9 @@ class AuthProvider extends ChangeNotifier {
       _role = data['role'];
       _subscriptionTier = data['subscription_tier'] ?? 'free';
       _language = data['language'] ?? 'tr';
+      _authErrorMessage = null;
       notifyListeners();
+      _clearNavigatorStack();
     } catch (e) {
       _isAuthenticated = false;
       rethrow;
@@ -126,6 +145,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Update Subscription Tier locally & in preferences
+  Future<void> updateSubscriptionTier(String newTier) async {
+    _subscriptionTier = newTier;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_subscription_tier', newTier);
+    notifyListeners();
+  }
+
   // Logout
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
@@ -137,6 +164,8 @@ class AuthProvider extends ChangeNotifier {
     _role = null;
     _subscriptionTier = null;
     _language = null;
+    _authErrorMessage = null;
     notifyListeners();
+    _clearNavigatorStack();
   }
 }
