@@ -12,6 +12,9 @@ import '../widgets/talk_diff_view.dart';
 import '../widgets/text_selection_toolbar.dart';
 import '../widgets/share_buttons.dart';
 import '../widgets/discussion_panel.dart';
+import '../widgets/diff_text_editing_controller.dart';
+import '../services/stt_service.dart';
+import '../services/tts_service.dart';
 
 class FlatTreeNode {
   final Map<String, dynamic> node;
@@ -32,7 +35,24 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   late Map<String, dynamic> _talkTree;
   Map<String, dynamic>? _selectedNode;
   final _instructionController = TextEditingController();
+  final DiffTextEditingController _speechTextController = DiffTextEditingController();
+  final TextEditingController _translationTextController = TextEditingController();
+  final SttService _sttService = SttService();
+  final TtsService _ttsService = TtsService();
+  Timer? _draftDebounce;
+  bool _hasDraft = false;
   Timer? _pollTimer;
+
+  // STT session baseline for replacing partial results
+  String? _sttBefore;
+  String? _sttAfter;
+  String? _sttPrefix;
+  String _lastRecognizedText = '';
+
+  TextEditingController get _activeTextController =>
+      (_viewingTranslation && _translatedLanguage != null)
+          ? _translationTextController
+          : _speechTextController;
 
   // Text selection toolbar
   final _toolbarController = TextSelectionToolbarController();
@@ -68,10 +88,204 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _speechTextController.addListener(_onSpeechControllerChanged);
+    _sttService.state.addListener(_onSttStateChanged);
     _talkTree = widget.talkNode;
     _selectedNode = _getLatestNode(widget.talkNode);
+    _loadDraftOrOriginal(_selectedNode);
     _checkAndReapplyTranslation();
     _reloadData();
+  }
+
+  String _getDraftKey(int? rootId, int? versionId) => 'talk_draft_${rootId}_$versionId';
+
+  Future<void> _loadDraftOrOriginal(Map<String, dynamic>? node) async {
+    if (node == null) return;
+    final rootId = (_talkTree['id'] ?? widget.talkNode['id']) as int?;
+    final versionId = (node['id'] as num?)?.toInt();
+    final origText = (node['generated_text'] as String? ?? '').trim();
+
+    _speechTextController.originalText = origText;
+
+    if (rootId == null || versionId == null) {
+      if (_speechTextController.text != origText) {
+        _speechTextController.text = origText;
+      }
+      if (mounted) setState(() => _hasDraft = false);
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draft = prefs.getString(_getDraftKey(rootId, versionId));
+      if (draft != null && draft.isNotEmpty && draft != origText) {
+        if (_speechTextController.text != draft) {
+          _speechTextController.text = draft;
+        }
+        if (mounted) setState(() => _hasDraft = true);
+      } else {
+        if (_speechTextController.text != origText) {
+          _speechTextController.text = origText;
+        }
+        if (mounted) setState(() => _hasDraft = false);
+      }
+    } catch (_) {
+      if (_speechTextController.text != origText) {
+        _speechTextController.text = origText;
+      }
+      if (mounted) setState(() => _hasDraft = false);
+    }
+  }
+
+  void _onSpeechTextChanged() {
+    final currentText = _speechTextController.text;
+    final origText = _speechTextController.originalText;
+    final isDraft = currentText != origText;
+    if (_hasDraft != isDraft && mounted) {
+      setState(() => _hasDraft = isDraft);
+    }
+
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(const Duration(milliseconds: 500), () async {
+      final rootId = (_talkTree['id'] ?? widget.talkNode['id']) as int?;
+      final versionId = (_selectedNode?['id'] as num?)?.toInt();
+      if (rootId == null || versionId == null) return;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final key = _getDraftKey(rootId, versionId);
+        if (currentText == origText || currentText.trim().isEmpty) {
+          await prefs.remove(key);
+        } else {
+          await prefs.setString(key, currentText);
+        }
+      } catch (_) {}
+    });
+  }
+
+  Future<void> _resetDraft() async {
+    _draftDebounce?.cancel();
+    final rootId = (_talkTree['id'] ?? widget.talkNode['id']) as int?;
+    final versionId = (_selectedNode?['id'] as num?)?.toInt();
+    if (rootId != null && versionId != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_getDraftKey(rootId, versionId));
+      } catch (_) {}
+    }
+    _speechTextController.text = _speechTextController.originalText;
+    if (mounted) {
+      setState(() => _hasDraft = false);
+    }
+  }
+
+  void _startSttSession() {
+    final controller = _activeTextController;
+    final currentText = controller.text;
+    final sel = controller.selection;
+    int start = (sel.start >= 0) ? sel.start : currentText.length;
+    int end = (sel.end >= 0) ? sel.end : currentText.length;
+    if (start > currentText.length) start = currentText.length;
+    if (end > currentText.length) end = currentText.length;
+    if (start > end) {
+      final tmp = start;
+      start = end;
+      end = tmp;
+    }
+
+    _sttBefore = currentText.substring(0, start);
+    _sttAfter = currentText.substring(end);
+    _sttPrefix = (start > 0 &&
+            !_sttBefore!.endsWith(' ') &&
+            !_sttBefore!.endsWith('\n'))
+        ? ' '
+        : '';
+    _lastRecognizedText = '';
+    debugPrint('[STT Session] START: before="$_sttBefore", after="$_sttAfter", prefix="$_sttPrefix"');
+  }
+
+  void _handleSttResult(String recognizedText, bool isFinal) {
+    debugPrint('[STT Session] _handleSttResult: "$recognizedText", isFinal=$isFinal, sttBefore="$_sttBefore"');
+
+    // If the session has already been reset/closed, ignore any late arriving callbacks
+    if (_sttBefore == null || _sttAfter == null) {
+      debugPrint('[STT Session] Dropping callback because session baseline is null');
+      return;
+    }
+
+    final trimmed = recognizedText.trim();
+    if (trimmed == _lastRecognizedText && isFinal) {
+      debugPrint('[STT Session] Suppressing duplicate final callback');
+      return;
+    }
+    _lastRecognizedText = trimmed;
+
+    final before = _sttBefore!;
+    final after = _sttAfter!;
+    final prefix = _sttPrefix ?? '';
+
+    final controller = _activeTextController;
+
+    if (trimmed.isEmpty) {
+      controller.value = TextEditingValue(
+        text: '$before$after',
+        selection: TextSelection.collapsed(offset: before.length),
+      );
+    } else {
+      final inserted = '$prefix$trimmed';
+      final newText = '$before$inserted$after';
+      final cursorOffset = before.length + inserted.length;
+      controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: cursorOffset),
+      );
+    }
+
+    // Only update SharedPreferences draft if editing original language, not translation preview
+    if (!_viewingTranslation) {
+      _onSpeechTextChanged();
+    }
+  }
+
+  void _resetSttSession() {
+    debugPrint('[STT Session] RESET');
+    _sttBefore = null;
+    _sttAfter = null;
+    _sttPrefix = null;
+    _lastRecognizedText = '';
+  }
+
+  void _onSttStateChanged() {
+    if (_sttService.state.value == SttState.idle || _sttService.state.value == SttState.error) {
+      _resetSttSession();
+    }
+  }
+
+  void _onSpeechControllerChanged() {
+    final selection = _speechTextController.selection;
+    final fullText = _speechTextController.text;
+
+    if (selection.isCollapsed || fullText.isEmpty) {
+      return;
+    }
+
+    _currentTextSelection = selection;
+    final selected = _snapToWordBoundaries(fullText, selection);
+    _pendingSelectedText = selected;
+
+    if (selected.length < 10) {
+      _selectionDebounce?.cancel();
+      if (_toolbarController.isVisible) {
+        _toolbarController.hide();
+        if (mounted) setState(() => _currentSelectedText = '');
+      }
+      return;
+    }
+
+    _selectionDebounce?.cancel();
+    _selectionDebounce = Timer(
+      const Duration(milliseconds: 400),
+      _handleSelectionCompleted,
+    );
   }
 
   Map<String, dynamic> _getLatestNode(Map<String, dynamic> root) {
@@ -94,6 +308,14 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   void dispose() {
     _pollTimer?.cancel();
     _selectionDebounce?.cancel();
+    _draftDebounce?.cancel();
+    _ttsService.dispose();
+    _sttService.state.removeListener(_onSttStateChanged);
+    _sttService.stopListening();
+    _sttService.dispose();
+    _speechTextController.removeListener(_onSpeechControllerChanged);
+    _speechTextController.dispose();
+    _translationTextController.dispose();
     _instructionController.dispose();
     _toolbarController.dispose();
     super.dispose();
@@ -162,6 +384,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               _selectedNode = _getLatestNode(freshRoot);
             }
           });
+          _loadDraftOrOriginal(_selectedNode);
           _checkAndManagePolling();
           _checkAndReapplyTranslation();
         } else if (!silent) {
@@ -221,13 +444,21 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   void _selectNode(Map<String, dynamic> node) {
+    _ttsService.stop();
+    if (_sttService.state.value == SttState.listening) {
+      _sttService.stopListening();
+      _resetSttSession();
+    }
+    _translationTextController.text = '';
     setState(() {
       _selectedNode = node;
       _viewDiff = false;
       _translatedLanguage = null;
       _translatedText = null;
       _viewingTranslation = false;
+      _currentSelectedText = '';
     });
+    _loadDraftOrOriginal(node);
     _checkAndReapplyTranslation();
   }
 
@@ -247,6 +478,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   }
 
   Future<void> _applyTranslation(String targetLanguage, {bool savePreference = true}) async {
+    _ttsService.stop();
     if (_selectedNode == null) return;
     final currentText = (_selectedNode!['generated_text'] as String? ?? '').trim();
     if (currentText.isEmpty) return;
@@ -254,7 +486,13 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final currentLanguage = _selectedNode!['language'] as String? ?? '';
     final rootId = _talkTree['id'] ?? widget.talkNode['id'];
 
+    if (_sttService.state.value == SttState.listening) {
+      _sttService.stopListening();
+      _resetSttSession();
+    }
+
     if (targetLanguage == currentLanguage) {
+      _translationTextController.text = '';
       if (savePreference && rootId != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('talk_translation_lang_$rootId');
@@ -270,6 +508,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
 
     if (_translatedLanguage == targetLanguage && _translatedText != null) {
+      _translationTextController.text = _translatedText!;
       if (mounted) {
         setState(() {
           _viewingTranslation = true;
@@ -292,9 +531,11 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('talk_translation_lang_$rootId', targetLanguage);
         }
+        final transText = (result['text'] as String? ?? '').trim();
+        _translationTextController.text = transText;
         setState(() {
           _translatedLanguage = result['language'] as String? ?? targetLanguage;
-          _translatedText = (result['text'] as String? ?? '').trim();
+          _translatedText = transText;
           _viewingTranslation = true;
         });
       }
@@ -754,7 +995,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
 
     final containerOffset = box.localToGlobal(Offset.zero);
     final containerSize = box.size;
-    final text = (_selectedNode?['generated_text'] as String? ?? '').trim();
+    final text = _speechTextController.text.trim();
 
     Rect anchorRect;
     if (_currentTextSelection != null && !_currentTextSelection!.isCollapsed && text.isNotEmpty) {
@@ -1132,6 +1373,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final lang = authProvider.language;
     final c = context.colors;
+    _speechTextController.colors = c;
     final flatNodes = _flattenTree(_talkTree, 0);
     flatNodes.sort((a, b) {
       final idA = (a.node['id'] as num?)?.toInt() ?? 0;
@@ -1258,6 +1500,35 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
         ),
         if (hasText) ...[
+          ValueListenableBuilder<TtsState>(
+            valueListenable: _ttsService.state,
+            builder: (context, ttsState, _) {
+              final isPlaying = ttsState == TtsState.playing;
+              final isLoading = ttsState == TtsState.loading;
+
+              return _headerIconAction(
+                icon: isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded,
+                tooltip: isPlaying ? 'Durdur' : 'Sesli Dinle (TTS)',
+                loading: isLoading,
+                onTap: () {
+                  if (isPlaying || isLoading) {
+                    _ttsService.stop();
+                  } else {
+                    final activeText = (_viewingTranslation && _translatedLanguage != null)
+                        ? _translationTextController.text.trim()
+                        : _speechTextController.text.trim();
+                    final activeLang = (_viewingTranslation && _translatedLanguage != null)
+                        ? _translatedLanguage!
+                        : (_selectedNode?['language'] as String? ?? _talkTree['language'] as String? ?? 'Türkçe');
+                    if (activeText.isNotEmpty) {
+                      _ttsService.speak(activeText, activeLang);
+                    }
+                  }
+                },
+                c: c,
+              );
+            },
+          ),
           _headerIconAction(
             icon: Icons.content_copy,
             tooltip: AppTranslations.tr('copy_speech', lang),
@@ -1823,47 +2094,6 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  /// Returns a [TextSpan] where the first occurrence of [highlighted] is styled
-  /// with an accent background, ensuring selected text remains visually distinct
-  /// even when focus moves to the toolbar popup, without interrupting Flutter's native
-  /// text selection handling.
-  TextSpan _buildSelectableTextSpan(String fullText, String highlighted, AppColors c) {
-    final baseStyle = GoogleFonts.schibstedGrotesk(
-      color: c.tx,
-      fontSize: 15,
-      height: 1.8,
-    );
-
-    if (highlighted.isEmpty) {
-      return TextSpan(text: fullText, style: baseStyle);
-    }
-
-    final idx = fullText.indexOf(highlighted);
-    if (idx < 0) {
-      return TextSpan(text: fullText, style: baseStyle);
-    }
-
-    final before = fullText.substring(0, idx);
-    final match = fullText.substring(idx, idx + highlighted.length);
-    final after = fullText.substring(idx + highlighted.length);
-
-    return TextSpan(
-      style: baseStyle,
-      children: [
-        TextSpan(text: before),
-        TextSpan(
-          text: match,
-          style: baseStyle.copyWith(
-            backgroundColor: c.acc.withValues(alpha: 0.35),
-            color: c.tx,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        TextSpan(text: after),
-      ],
-    );
-  }
-
   Widget _buildContentColumn(List<FlatTreeNode> flatNodes, String lang, AppColors c, {required bool isCompact}) {
     if (_selectedNode == null) return const SizedBox.shrink();
 
@@ -1903,9 +2133,57 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: c.bordSoft),
             ),
-            child: SelectableText(
-              _translatedText!,
-              style: GoogleFonts.schibstedGrotesk(color: c.tx, fontSize: 15, height: 1.8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _translatedLanguage ?? 'Çeviri',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: c.tx3),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'ÖNİZLEME · DÜZENLENEBİLİR',
+                            style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, color: c.tx3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildMicButton(c),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Divider(color: c.bordSoft, height: 1),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _translationTextController,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  cursorColor: c.acc,
+                  style: GoogleFonts.schibstedGrotesk(
+                    color: c.tx,
+                    fontSize: 15,
+                    height: 1.8,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                  ),
+                ),
+              ],
             ),
           )
         else if (_isTranslating)
@@ -1979,16 +2257,45 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (text.isNotEmpty) ...[
-                            Text(
-                              captionLeft,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: c.tx3),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$wordCount ${AppTranslations.tr("words", lang).toUpperCase()} · ~$readTimeMinutes ${AppTranslations.tr("minutes", lang).toUpperCase()}',
-                              style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, color: c.tx3),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        captionLeft,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: c.tx3),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$wordCount ${AppTranslations.tr("words", lang).toUpperCase()} · ~$readTimeMinutes ${AppTranslations.tr("minutes", lang).toUpperCase()}',
+                                        style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, color: c.tx3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_hasDraft) ...[
+                                  TextButton.icon(
+                                    onPressed: _resetDraft,
+                                    icon: Icon(Icons.restore_rounded, size: 14, color: c.tx3),
+                                    label: Text(
+                                      'Sıfırla',
+                                      style: GoogleFonts.schibstedGrotesk(fontSize: 11, fontWeight: FontWeight.w600, color: c.tx3),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                _buildMicButton(c),
+                              ],
                             ),
                             const SizedBox(height: 14),
                             Divider(color: c.bordSoft, height: 1),
@@ -2001,40 +2308,26 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
                                 _selectionDebounce?.cancel();
                                 _handleSelectionCompleted();
                               },
-                              child: SelectableText.rich(
-                                _buildSelectableTextSpan(text, _currentSelectedText, c),
-                                selectionColor: c.acc.withValues(alpha: 0.4),
-                                onSelectionChanged: (selection, cause) {
-                                  _currentTextSelection = selection;
-
-                                  // Extract the selected substring snapped to full word boundaries
-                                  final selected = _snapToWordBoundaries(text, selection);
-
-                                  _pendingSelectedText = selected;
-
-                                  // Dismiss on empty / too-short selection
-                                  if (selected.length < 10) {
-                                    _selectionDebounce?.cancel();
-                                    if (_toolbarController.isVisible) {
-                                      _toolbarController.hide();
-                                      setState(() => _currentSelectedText = '');
-                                    }
-                                    return;
-                                  }
-
-                                  // On mobile, dragging the selection handles doesn't fire
-                                  // Listener.onPointerUp (the handles live in a separate
-                                  // overlay and consume the touch themselves), so
-                                  // _handleSelectionCompleted would never run there. Debounce
-                                  // on every selection change as a cross-platform fallback:
-                                  // once the selection stops moving for a short pause, treat
-                                  // it as final and show the toolbar.
-                                  _selectionDebounce?.cancel();
-                                  _selectionDebounce = Timer(
-                                    const Duration(milliseconds: 400),
-                                    _handleSelectionCompleted,
-                                  );
-                                },
+                              child: TextField(
+                                controller: _speechTextController,
+                                maxLines: null,
+                                keyboardType: TextInputType.multiline,
+                                cursorColor: c.acc,
+                                style: GoogleFonts.schibstedGrotesk(
+                                  color: c.tx,
+                                  fontSize: 15,
+                                  height: 1.8,
+                                ),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                ),
+                                onChanged: (_) => _onSpeechTextChanged(),
                               ),
                             ),
                           ),
@@ -2055,6 +2348,72 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildMicButton(AppColors c) {
+    return ValueListenableBuilder<SttState>(
+      valueListenable: _sttService.state,
+      builder: (context, sttState, _) {
+        final isListening = sttState == SttState.listening;
+        final isProcessing = sttState == SttState.processing;
+        final isError = sttState == SttState.error;
+
+        Color buttonColor = c.surf2;
+        Color iconColor = c.tx2;
+        if (isListening) {
+          buttonColor = Colors.redAccent.withValues(alpha: 0.15);
+          iconColor = Colors.redAccent;
+        } else if (isError) {
+          buttonColor = Colors.orangeAccent.withValues(alpha: 0.15);
+          iconColor = Colors.orangeAccent;
+        }
+
+        return Tooltip(
+          message: isListening ? 'Dinlemeyi Durdur' : 'Sesle Düzenle (STT)',
+          child: InkWell(
+            onTap: () {
+              final langSource = (_viewingTranslation && _translatedLanguage != null)
+                  ? _translatedLanguage!
+                  : (_selectedNode?['language'] as String? ?? 'Türkçe');
+              if (_sttService.state.value == SttState.listening) {
+                _sttService.stopListening();
+              } else {
+                _startSttSession();
+                _sttService.startListening(
+                  langSource,
+                  (recognized, isFinal) => _handleSttResult(recognized, isFinal),
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: buttonColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isListening ? Colors.redAccent.withValues(alpha: 0.5) : c.bordSoft,
+                ),
+              ),
+              child: isProcessing
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: c.acc),
+                    )
+                  : Icon(
+                      isListening
+                          ? Icons.mic_rounded
+                          : (isError ? Icons.mic_off_rounded : Icons.mic_none_rounded),
+                      size: 16,
+                      color: iconColor,
+                    ),
+            ),
+          ),
+        );
+      },
     );
   }
 

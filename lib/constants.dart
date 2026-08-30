@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class Constants {
   // Default fallback URL
-  static String baseUrl = 'http://localhost:8082/api/v1';
+  static String baseUrl = 'http://localhost:8080/api/v1';
 
   // Google OAuth Web Client ID, loaded at runtime from /config.json. Empty
   // until a real client ID is configured server-side (GOOGLE_CLIENT_ID env),
