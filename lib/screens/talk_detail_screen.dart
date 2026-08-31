@@ -36,7 +36,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
   Map<String, dynamic>? _selectedNode;
   final _instructionController = TextEditingController();
   final DiffTextEditingController _speechTextController = DiffTextEditingController();
-  final TextEditingController _translationTextController = TextEditingController();
+  final DiffTextEditingController _translationTextController = DiffTextEditingController();
   final SttService _sttService = SttService();
   final TtsService _ttsService = TtsService();
   Timer? _draftDebounce;
@@ -449,6 +449,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
       _sttService.stopListening();
       _resetSttSession();
     }
+    _translationTextController.originalText = '';
     _translationTextController.text = '';
     setState(() {
       _selectedNode = node;
@@ -492,6 +493,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
 
     if (targetLanguage == currentLanguage) {
+      _translationTextController.originalText = '';
       _translationTextController.text = '';
       if (savePreference && rootId != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -508,6 +510,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     }
 
     if (_translatedLanguage == targetLanguage && _translatedText != null) {
+      _translationTextController.originalText = _translatedText!;
       _translationTextController.text = _translatedText!;
       if (mounted) {
         setState(() {
@@ -532,6 +535,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           await prefs.setString('talk_translation_lang_$rootId', targetLanguage);
         }
         final transText = (result['text'] as String? ?? '').trim();
+        _translationTextController.originalText = transText;
         _translationTextController.text = transText;
         setState(() {
           _translatedLanguage = result['language'] as String? ?? targetLanguage;
@@ -1374,6 +1378,7 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     final lang = authProvider.language;
     final c = context.colors;
     _speechTextController.colors = c;
+    _translationTextController.colors = c;
     final flatNodes = _flattenTree(_talkTree, 0);
     flatNodes.sort((a, b) {
       final idA = (a.node['id'] as num?)?.toInt() ?? 0;
