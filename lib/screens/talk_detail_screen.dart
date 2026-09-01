@@ -1072,7 +1072,16 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
     );
   }
 
-  void _openShareSheet(String text) {
+  void _openShareSheet({
+    required String text,
+    required String title,
+    required String language,
+    required String speechType,
+    required String duration,
+    required String place,
+    String? createdAt,
+    required String appLang,
+  }) {
     final c = context.colors;
     showModalBottomSheet<void>(
       context: context,
@@ -1087,7 +1096,16 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
             children: [
               Text('Paylaş', style: GoogleFonts.schibstedGrotesk(color: c.tx, fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 16),
-              ShareButtons(text: text),
+              ShareButtons(
+                text: text,
+                title: title,
+                language: language,
+                speechType: speechType,
+                duration: duration,
+                place: place,
+                createdAt: createdAt,
+                appLang: appLang,
+              ),
             ],
           ),
         ),
@@ -1267,7 +1285,18 @@ class _TalkDetailScreenState extends State<TalkDetailScreen> {
           _headerIconAction(
             icon: Icons.ios_share,
             tooltip: 'Paylaş',
-            onTap: () => _openShareSheet(displayedText),
+            onTap: () => _openShareSheet(
+              text: displayedText,
+              title: topic,
+              language: (_viewingTranslation && _translatedText != null)
+                  ? (_translatedLanguage ?? '')
+                  : (_talkTree['language'] as String? ?? _selectedNode?['language'] as String? ?? ''),
+              speechType: AppTranslations.translateSpeechType(_talkTree['speech_type'], lang),
+              duration: '${_talkTree['duration'] ?? 0} ${AppTranslations.tr('minutes', lang)}',
+              place: (_talkTree['place'] as String?) ?? '',
+              createdAt: (_selectedNode?['created_at'] ?? _talkTree['created_at']) as String?,
+              appLang: lang,
+            ),
             c: c,
           ),
           _headerIconAction(
